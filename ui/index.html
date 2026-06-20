@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lighthouse</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.5/cdn.min.js" defer></script>
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body x-data="app()" x-init="init()">
+
+  <!-- Topbar -->
+  {{template "topbar" .}}
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Alert -->
+    <div x-show="alert.msg" x-transition class="alert" :class="alert.type === 'err' ? 'alert-err' : 'alert-ok'"
+      x-text="alert.msg"></div>
+
+    <!-- App list -->
+    {{template "app_list" .}}
+
+    <!-- App Detail -->
+    {{template "app_detail" .}}
+  </div>
+
+  <!-- Create App Modal -->
+  {{template "create_modal" .}}
+
+  <script src="/app.js"></script>
+</body>
+
+</html>

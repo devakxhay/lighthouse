@@ -1,0 +1,61 @@
+{{define "app_detail"}}
+<div x-show="selectedApp">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+    <button class="btn btn-sm" @click="selectedApp=null;loadApps()">← Back</button>
+    <h2 style="font-size:18px;font-weight:700" x-text="selectedApp?.name"></h2>
+    <span class="type-badge" x-text="selectedApp?.type"></span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab" :class="{active: tab==='logs'}" @click="tab='logs';loadLogs()">Logs</div>
+    <div class="tab" :class="{active: tab==='audit'}" @click="tab='audit';loadAudit()">Audit Trail</div>
+    <div class="tab" :class="{active: tab==='nginx'}" @click="tab='nginx';loadNginxHistory()">Nginx History</div>
+  </div>
+
+  <!-- Logs -->
+  <div x-show="tab==='logs'">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn btn-sm" @click="loadLogs()">↻ Refresh</button>
+    </div>
+    <div class="log-box" x-text="logs || 'No logs yet.'"></div>
+  </div>
+
+  <!-- Audit -->
+  <div x-show="tab==='audit'" class="card">
+    <div class="card-body">
+      <template x-if="auditLogs.length === 0">
+        <p style="color:var(--muted);text-align:center;padding:20px">No audit entries yet.</p>
+      </template>
+      <template x-for="entry in auditLogs" :key="entry.id">
+        <div class="audit-row">
+          <div class="audit-icon" :class="entry.status==='SUCCESS' ? 'audit-icon-ok' : 'audit-icon-err'">
+            <span x-text="entry.status==='SUCCESS' ? '✓' : '✗'"></span>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div class="audit-action" x-text="entry.action"></div>
+            <div class="audit-details" x-text="entry.details"></div>
+          </div>
+          <div class="audit-time" x-text="formatDate(entry.timestamp)"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Nginx history -->
+  <div x-show="tab==='nginx'" class="card">
+    <div class="card-body">
+      <template x-if="nginxHistory.length === 0">
+        <p style="color:var(--muted);text-align:center;padding:20px">No nginx commits yet.</p>
+      </template>
+      <template x-for="entry in nginxHistory" :key="entry.hash">
+        <div class="rollback-row">
+          <span class="hash" x-text="entry.hash"></span>
+          <span class="rollback-msg" x-text="entry.message"></span>
+          <span class="rollback-time" x-text="formatDate(entry.timestamp)"></span>
+          <button class="btn btn-sm btn-danger" @click="rollback(entry.hash)">Restore</button>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+{{end}}

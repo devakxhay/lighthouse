@@ -1,0 +1,19 @@
+[Unit]
+Description=Lighthouse: {{.Name}} (Spring Boot)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/java \
+  -Xms256m -Xmx512m \
+  -jar {{.BinaryPath}}
+WorkingDirectory={{.AppDir}}
+EnvironmentFile={{.EnvFile}}
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{.Name}}
+
+[Install]
+WantedBy=multi-user.target

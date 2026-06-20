@@ -1,0 +1,53 @@
+{{define "create_modal"}}
+<div class="modal-backdrop" x-show="showCreate" x-transition @click.self="showCreate=false">
+  <div class="modal" @click.stop>
+    <div class="modal-header">
+      <h2>Register New App</h2>
+      <button class="btn btn-sm" @click="showCreate=false">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">App Name *</label>
+        <input class="form-input" x-model="form.name" placeholder="et-backend" />
+        <p class="form-hint">Lowercase, no spaces. Used as service name.</p>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">App Type *</label>
+          <select class="form-select" x-model="form.type">
+            <option value="">Select type</option>
+            <option value="spring-boot">Spring Boot</option>
+            <option value="nextjs">Next.js</option>
+            <option value="go">Go</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Port *</label>
+          <input class="form-input" x-model.number="form.port" placeholder="8080" type="number" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Domain *</label>
+        <input class="form-input" x-model="form.domain" placeholder="et-backend.local" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Binary / Jar Path</label>
+        <input class="form-input" x-model="form.binary_path" placeholder="/home/pi/apps/et-backend.jar" />
+        <p class="form-hint">Full path to the compiled binary or jar file.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">App Directory</label>
+        <input class="form-input" x-model="form.app_dir" placeholder="/home/pi/apps/et-backend" />
+        <p class="form-hint">Working directory for the process.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" @click="showCreate=false">Cancel</button>
+      <button class="btn btn-primary" @click="createApp()" :disabled="creating">
+        <span x-show="creating" class="spinner"></span>
+        <span x-text="creating ? 'Registering...' : 'Register App'"></span>
+      </button>
+    </div>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,19 @@
+[Unit]
+Description=Lighthouse: {{.Name}} (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/npm run start
+WorkingDirectory={{.AppDir}}
+EnvironmentFile={{.EnvFile}}
+Environment=NODE_ENV=production
+Environment=PORT={{.Port}}
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{.Name}}
+
+[Install]
+WantedBy=multi-user.target

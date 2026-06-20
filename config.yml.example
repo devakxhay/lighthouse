@@ -1,0 +1,17 @@
+ca:
+  cert_path: /etc/lighthouse/ca/ca.crt
+  key_path:  /etc/lighthouse/ca/ca.key
+
+dirs:
+  certs: /etc/lighthouse/certs
+  envs:  /etc/lighthouse/envs
+  units: /etc/systemd/system
+  data:  /var/lib/lighthouse
+
+nginx:
+  sites_available: /etc/nginx/sites-available
+  sites_enabled:   /etc/nginx/sites-enabled
+
+server:
+  host: 0.0.0.0
+  port: 9000

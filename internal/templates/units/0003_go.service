@@ -1,0 +1,17 @@
+[Unit]
+Description=Lighthouse: {{.Name}} (Go)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{.BinaryPath}}
+WorkingDirectory={{.AppDir}}
+EnvironmentFile={{.EnvFile}}
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{.Name}}
+
+[Install]
+WantedBy=multi-user.target

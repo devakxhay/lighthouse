@@ -1,0 +1,55 @@
+{{define "app_list"}}
+<div x-show="!selectedApp">
+  <div class="section-title">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+    Apps
+    <span style="color:var(--muted);font-weight:400;font-size:13px" x-text="'(' + apps.length + ')'"></span>
+  </div>
+
+  <div x-show="loading" style="display:flex;justify-content:center;padding:40px">
+    <div class="spinner"></div>
+  </div>
+
+  <div class="app-grid" x-show="!loading">
+    <template x-if="apps.length === 0">
+      <div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+        <p style="font-size:15px;font-weight:500;margin-bottom:6px">No apps yet</p>
+        <p style="font-size:13px">Click "New App" to deploy your first app.</p>
+      </div>
+    </template>
+
+    <template x-for="a in apps" :key="a.id">
+      <div class="app-card">
+        <div class="app-info">
+          <div class="app-name">
+            <span x-text="a.name"></span>
+            <span class="type-badge" x-text="a.type"></span>
+          </div>
+          <a class="app-domain" :href="'https://' + a.domain" target="_blank" x-text="'https://' + a.domain"></a>
+          <div class="app-meta">Port <strong x-text="a.port"></strong> &nbsp;·&nbsp; <span
+              x-text="formatDate(a.created_at)"></span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="badge" :class="statusClass(a.live_status)" x-text="a.live_status || a.status"></span>
+          <div class="app-actions">
+            <button class="btn btn-sm" @click="deployApp(a.name)" title="Deploy">🚀</button>
+            <button class="btn btn-sm" @click="controlApp(a.name,'start')" title="Start">▶</button>
+            <button class="btn btn-sm" @click="controlApp(a.name,'restart')" title="Restart">↺</button>
+            <button class="btn btn-sm" @click="controlApp(a.name,'stop')" title="Stop">■</button>
+            <button class="btn btn-sm" @click="openDetail(a)" title="Details">···</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+{{end}}

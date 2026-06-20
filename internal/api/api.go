@@ -140,7 +140,7 @@ func (h *Handler) DeleteApp(w http.ResponseWriter, r *http.Request) {
 // ---- Deploy Handler ----
 
 // POST /api/apps/{name}/deploy
-// Full deploy: generate cert → write nginx → create systemd unit → start
+// Full deploy: pull/build → generate cert → write nginx → create systemd unit → restart
 func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
@@ -160,6 +160,13 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		})
 		writeErr(w, 500, fmt.Sprintf("[%s] %s", step, err))
 	}
+
+	// 0. Pull code and build
+	if err := h.pullAndBuild(app); err != nil {
+		fail("BUILD", err)
+		return
+	}
+	steps = append(steps, "code pulled and built")
 
 	// 1. Generate SSL cert
 	certPaths, err := h.SSL.Generate(app.Domain)
@@ -236,12 +243,12 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 	h.Process.Enable(name)
 	steps = append(steps, "systemd unit created")
 
-	// 6. Start the service
-	if err := h.Process.Start(name); err != nil {
+	// 6. Restart the service
+	if err := h.Process.Restart(name); err != nil {
 		fail("SERVICE_START", err)
 		return
 	}
-	steps = append(steps, "service started")
+	steps = append(steps, "service restarted")
 
 	h.DB.UpdateAppStatus(name, models.StatusRunning)
 	h.DB.Log(models.AuditLog{

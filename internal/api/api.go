@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -76,12 +77,12 @@ func (h *Handler) ListApps(w http.ResponseWriter, r *http.Request) {
 // POST /api/apps
 func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name       string `json:"name"`
-		Type       string `json:"type"` // spring-boot | nextjs | go
-		Domain     string `json:"domain"`
-		Port       int    `json:"port"`
-		BinaryPath string `json:"binary_path"`
-		AppDir     string `json:"app_dir"`
+		Name   string `json:"name"`
+		Type   string `json:"type"` // spring-boot | nextjs | go
+		Domain string `json:"domain"`
+		Port   int    `json:"port"`
+		GitURL string `json:"git_url"`
+		AppDir string `json:"app_dir"`
 	}
 
 	if err := decode(r, &req); err != nil {
@@ -89,18 +90,27 @@ func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.Type == "" || req.Domain == "" || req.Port == 0 {
-		writeErr(w, 400, "name, type, domain, port are required")
+	if req.Name == "" || req.Type == "" || req.Domain == "" || req.GitURL == "" {
+		writeErr(w, 400, "name, type, domain, and git_url are required")
 		return
 	}
 
+	if req.Port == 0 {
+		freePort, err := findFreePort(h.DB)
+		if err != nil {
+			writeErr(w, 500, fmt.Sprintf("failed to allocate automatic port: %v", err))
+			return
+		}
+		req.Port = freePort
+	}
+
 	app := &models.App{
-		Name:       req.Name,
-		Type:       models.AppType(req.Type),
-		Domain:     req.Domain,
-		Port:       req.Port,
-		BinaryPath: req.BinaryPath,
-		AppDir:     req.AppDir,
+		Name:   req.Name,
+		Type:   models.AppType(req.Type),
+		Domain: req.Domain,
+		Port:   req.Port,
+		GitURL: req.GitURL,
+		AppDir: req.AppDir,
 	}
 	
 	if err := h.DB.CreateApp(app); err != nil {
@@ -167,6 +177,11 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	steps = append(steps, "code pulled and built")
+
+	if err := h.DB.UpdateAppPaths(app.Name, app.AppDir, app.BinaryPath); err != nil {
+		fail("SAVE_PATHS", err)
+		return
+	}
 
 	// 1. Generate SSL cert
 	certPaths, err := h.SSL.Generate(app.Domain)
@@ -393,4 +408,38 @@ func (h *Handler) NginxRollback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]string{"status": "rolled back", "hash": req.Hash})
+}
+
+// findFreePort locates an available TCP port in the range 30000-45000.
+func findFreePort(database *db.DB) (int, error) {
+	apps, err := database.ListApps()
+	if err != nil {
+		return 0, err
+	}
+	usedPorts := make(map[int]bool)
+	for _, a := range apps {
+		usedPorts[a.Port] = true
+	}
+
+	for port := 30000; port <= 45000; port++ {
+		if usedPorts[port] {
+			continue
+		}
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+		if err == nil {
+			ln.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("no free ports available in range 30000-45000")
+}
+
+// GET /api/apps/next-port
+func (h *Handler) NextPort(w http.ResponseWriter, r *http.Request) {
+	port, err := findFreePort(h.DB)
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]int{"port": port})
 }

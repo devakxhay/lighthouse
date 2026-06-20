@@ -6,35 +6,66 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/devakxhay/lighthouse/models"
 )
 
 // pullAndBuild pulls the latest git code and builds the app.
 func (h *Handler) pullAndBuild(app *models.App) error {
-	if app.AppDir == "" {
-		return errors.New("app directory (app_dir) must be configured to pull and build")
+	if app.GitURL == "" {
+		return errors.New("git URL (git_url) is required to deploy")
 	}
 
-	// 1. Git pull
-	if err := runCmd(app.AppDir, "git", "pull"); err != nil {
-		return fmt.Errorf("git pull: %w", err)
+	// If no app directory provided, create a default directory under lighthouse data dir
+	if app.AppDir == "" {
+		app.AppDir = filepath.Join(h.Cfg.Dirs.Data, "apps", app.Name)
+	}
+
+	// 1. Clone or Pull
+	gitDir := filepath.Join(app.AppDir, ".git")
+	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+		// Ensure parent directory exists
+		if err := os.MkdirAll(filepath.Dir(app.AppDir), 0755); err != nil {
+			return fmt.Errorf("create parent dir: %w", err)
+		}
+		// Clone repository
+		if err := runCmd(filepath.Dir(app.AppDir), "git", "clone", app.GitURL, filepath.Base(app.AppDir)); err != nil {
+			return fmt.Errorf("git clone: %w", err)
+		}
+	} else {
+		// Pull latest
+		if err := runCmd(app.AppDir, "git", "pull"); err != nil {
+			return fmt.Errorf("git pull: %w", err)
+		}
 	}
 
 	// 2. Build based on type
 	switch app.Type {
 	case models.AppTypeSpringBoot:
+		var buildErr error
 		if fileExists(filepath.Join(app.AppDir, "gradlew")) {
-			return runCmd(app.AppDir, "./gradlew", "build", "-x", "test")
+			buildErr = runCmd(app.AppDir, "./gradlew", "build", "-x", "test")
 		} else if fileExists(filepath.Join(app.AppDir, "mvnw")) {
-			return runCmd(app.AppDir, "./mvnw", "clean", "package", "-DskipTests")
+			buildErr = runCmd(app.AppDir, "./mvnw", "clean", "package", "-DskipTests")
 		} else if fileExists(filepath.Join(app.AppDir, "pom.xml")) {
-			return runCmd(app.AppDir, "mvn", "clean", "package", "-DskipTests")
+			buildErr = runCmd(app.AppDir, "mvn", "clean", "package", "-DskipTests")
 		} else if fileExists(filepath.Join(app.AppDir, "build.gradle")) || fileExists(filepath.Join(app.AppDir, "build.gradle.kts")) {
-			return runCmd(app.AppDir, "gradle", "build", "-x", "test")
+			buildErr = runCmd(app.AppDir, "gradle", "build", "-x", "test")
 		} else {
 			return errors.New("spring-boot build tools not found (gradlew, mvnw, pom.xml, or build.gradle)")
 		}
+
+		if buildErr != nil {
+			return fmt.Errorf("spring-boot build: %w", buildErr)
+		}
+
+		// Find the built jar file
+		jarPath, err := findSpringBootJar(app.AppDir)
+		if err != nil {
+			return err
+		}
+		app.BinaryPath = jarPath
 
 	case models.AppTypeNextJS:
 		if err := runCmd(app.AppDir, "npm", "install"); err != nil {
@@ -45,9 +76,7 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 		}
 
 	case models.AppTypeGo:
-		if app.BinaryPath == "" {
-			return errors.New("binary path (binary_path) must be configured to build a Go app")
-		}
+		app.BinaryPath = filepath.Join(app.AppDir, app.Name)
 		_ = os.Remove(app.BinaryPath)
 		if err := runCmd(app.AppDir, "go", "build", "-o", app.BinaryPath); err != nil {
 			return fmt.Errorf("go build: %w", err)
@@ -58,6 +87,48 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 	}
 
 	return nil
+}
+
+func findSpringBootJar(appDir string) (string, error) {
+	patterns := []string{
+		filepath.Join(appDir, "target", "*.jar"),
+		filepath.Join(appDir, "build", "libs", "*.jar"),
+	}
+
+	var candidate string
+	var maxSize int64
+
+	for _, pattern := range patterns {
+		matches, _ := filepath.Glob(pattern)
+		for _, match := range matches {
+			base := filepath.Base(match)
+			if containsAny(base, "-sources", "-javadoc", "-plain", ".original") {
+				continue
+			}
+			info, err := os.Stat(match)
+			if err != nil {
+				continue
+			}
+			if info.Size() > maxSize {
+				maxSize = info.Size()
+				candidate = match
+			}
+		}
+	}
+
+	if candidate == "" {
+		return "", errors.New("could not find any built Spring Boot jar file in target/ or build/libs/")
+	}
+	return candidate, nil
+}
+
+func containsAny(s string, substrings ...string) bool {
+	for _, sub := range substrings {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 func runCmd(dir, name string, args ...string) error {

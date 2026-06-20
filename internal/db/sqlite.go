@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"strings"
 
 	"github.com/devakxhay/lighthouse/models"
 	_ "github.com/mattn/go-sqlite3"
@@ -35,6 +36,8 @@ func (d *DB) migrate() error {
 	migrations := []string{
 		"migrations/0001_init.sql",
 		"migrations/0002_unique_domain.sql",
+		"migrations/0003_git_url.sql",
+		"migrations/0004_unique_port.sql",
 	}
 	for _, m := range migrations {
 		schema, err := migrationFS.ReadFile(m)
@@ -42,6 +45,9 @@ func (d *DB) migrate() error {
 			return err
 		}
 		if _, err = d.conn.Exec(string(schema)); err != nil {
+			if strings.Contains(err.Error(), "duplicate column name") {
+				continue
+			}
 			return fmt.Errorf("run migration %s: %w", m, err)
 		}
 	}
@@ -52,9 +58,9 @@ func (d *DB) migrate() error {
 
 func (d *DB) CreateApp(a *models.App) error {
 	res, err := d.conn.Exec(`
-		INSERT INTO apps (name, type, domain, port, binary_path, app_dir, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending,
+		INSERT INTO apps (name, type, domain, port, binary_path, app_dir, status, git_url)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending, a.GitURL,
 	)
 	if err != nil {
 		return err
@@ -66,10 +72,10 @@ func (d *DB) CreateApp(a *models.App) error {
 func (d *DB) GetApp(name string) (*models.App, error) {
 	a := &models.App{}
 	err := d.conn.QueryRow(`
-		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at
+		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url
 		FROM apps WHERE name = ?`, name).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
-			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt)
+			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -78,7 +84,7 @@ func (d *DB) GetApp(name string) (*models.App, error) {
 
 func (d *DB) ListApps() ([]models.App, error) {
 	rows, err := d.conn.Query(`
-		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at
+		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url
 		FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -89,7 +95,7 @@ func (d *DB) ListApps() ([]models.App, error) {
 	for rows.Next() {
 		a := models.App{}
 		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
-			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt); err != nil {
+			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL); err != nil {
 			return nil, err
 		}
 		apps = append(apps, a)
@@ -99,6 +105,11 @@ func (d *DB) ListApps() ([]models.App, error) {
 
 func (d *DB) UpdateAppStatus(name string, status models.AppStatus) error {
 	_, err := d.conn.Exec(`UPDATE apps SET status = ? WHERE name = ?`, status, name)
+	return err
+}
+
+func (d *DB) UpdateAppPaths(name string, appDir string, binaryPath string) error {
+	_, err := d.conn.Exec(`UPDATE apps SET app_dir = ?, binary_path = ? WHERE name = ?`, appDir, binaryPath, name)
 	return err
 }
 

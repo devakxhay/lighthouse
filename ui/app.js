@@ -10,7 +10,7 @@ function app() {
     logs: '',
     auditLogs: [],
     nginxHistory: [],
-    form: { name: '', type: '', domain: '', port: '', binary_path: '', app_dir: '' },
+    form: { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '' },
 
     async init() {
       await this.loadApps()
@@ -25,14 +25,21 @@ function app() {
       this.loading = false
     },
 
-    openCreate() {
-      this.form = { name: '', type: '', domain: '', port: '', binary_path: '', app_dir: '' }
+    async openCreate() {
+      this.form = { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '' }
       this.showCreate = true
+      try {
+        const r = await fetch('/api/apps/next-port')
+        const data = await r.json()
+        if (r.ok && data.port) {
+          this.form.port = data.port
+        }
+      } catch (e) { console.error("failed to get next port", e) }
     },
 
     async createApp() {
-      if (!this.form.name || !this.form.type || !this.form.domain || !this.form.port) {
-        this.showAlert('Name, type, domain and port are required', 'err'); return
+      if (!this.form.name || !this.form.type || !this.form.domain || !this.form.git_url) {
+        this.showAlert('Name, type, domain and git URL are required', 'err'); return
       }
       this.creating = true
       try {

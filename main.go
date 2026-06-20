@@ -103,6 +103,7 @@ func main() {
 		r.Route("/apps", func(r chi.Router) {
 			r.Get("/", h.ListApps)
 			r.Post("/", h.CreateApp)
+			r.Get("/next-port", h.NextPort)
 
 			r.Route("/{name}", func(r chi.Router) {
 				r.Delete("/", h.DeleteApp)

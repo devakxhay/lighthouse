@@ -29,6 +29,7 @@ type App struct {
 	AppDir     string    `json:"app_dir"`
 	Status     AppStatus `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
+	GitURL     string    `json:"git_url"`
 }
 
 type Cert struct {

@@ -150,7 +150,7 @@ function app() {
     },
 
     statusClass(s) {
-      return { 'badge-running': s === 'running', 'badge-stopped': s === 'stopped', 'badge-failed': s === 'failed', 'badge-pending': !s || s === 'pending' }
+      return { 'badge-running': s === 'running', 'badge-stopped': s === 'stopped', 'badge-failed': s === 'failed', 'badge-pending': !s || s === 'pending', 'badge-building': s === 'building' }
     },
 
     formatDate(d) {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/devakxhay/lighthouse/internal/templates"
@@ -169,6 +170,11 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		pathEnv = filepath.Dir(javaBin) + ":" + pathEnv
 	}
 
+	isExport := false
+	if app.Type == models.AppTypeNextJS {
+		isExport = isNextJSExport(app.AppDir)
+	}
+
 	// 5. Write systemd unit
 	unitContent, err := templates.RenderSystemdUnit(string(app.Type), templates.AppData{
 		Name:       app.Name,
@@ -180,6 +186,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		NpmBin:     npmBin,
 		GoBin:      goBin,
 		PathEnv:    pathEnv,
+		IsExport:   isExport,
 	})
 	if err != nil {
 		fail("SYSTEMD_TEMPLATE", err)
@@ -215,4 +222,27 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		"steps":  steps,
 		"domain": "https://" + app.Domain,
 	})
+}
+
+func isNextJSExport(appDir string) bool {
+	configFiles := []string{"next.config.js", "next.config.mjs", "next.config.ts"}
+	for _, file := range configFiles {
+		path := filepath.Join(appDir, file)
+		content, err := os.ReadFile(path)
+		if err == nil {
+			str := string(content)
+			normalized := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(str, " ", ""), "\t", ""), "\n", "")
+			if strings.Contains(normalized, `output:'export'`) ||
+				strings.Contains(normalized, `output:"export"`) ||
+				strings.Contains(normalized, `"output":"export"`) ||
+				strings.Contains(normalized, `'output':'export'`) {
+				return true
+			}
+		}
+	}
+	outInfo, err := os.Stat(filepath.Join(appDir, "out"))
+	if err == nil && outInfo.IsDir() {
+		return true
+	}
+	return false
 }

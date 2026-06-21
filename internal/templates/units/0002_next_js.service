@@ -6,7 +6,7 @@ After=network.target
 User=lighthouse
 Group=lighthouse
 Type=simple
-ExecStart={{.NpmBin}} run start
+ExecStart={{if .IsExport}}npx --yes serve -l {{.Port}} out{{else}}{{.NpmBin}} run start{{end}}
 WorkingDirectory={{.AppDir}}
 EnvironmentFile={{.EnvFile}}
 Environment=PATH={{.PathEnv}}

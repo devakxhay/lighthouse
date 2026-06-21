@@ -21,6 +21,7 @@ type AppData struct {
 	NpmBin     string
 	GoBin      string
 	PathEnv    string
+	IsExport   bool
 }
 
 //go:embed units/*.service

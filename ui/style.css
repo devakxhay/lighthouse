@@ -177,6 +177,21 @@ body {
   color: var(--yellow);
 }
 
+.badge-building {
+  background: #58a6ff22;
+  color: var(--blue);
+}
+
+.badge-building::before {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}
+
 .type-badge {
   background: #58a6ff22;
   color: var(--blue);

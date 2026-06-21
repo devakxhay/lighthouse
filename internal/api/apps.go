@@ -28,7 +28,11 @@ func (h *Handler) ListApps(w http.ResponseWriter, r *http.Request) {
 	for _, a := range apps {
 		st, _ := h.Process.Status(a.Name)
 		liveStatus := "stopped"
-		if st != nil && st.Sub == "running" {
+		if a.Status == models.StatusBuilding {
+			liveStatus = "building"
+		} else if a.Status == models.StatusPending {
+			liveStatus = "pending"
+		} else if st != nil && st.Sub == "running" {
 			liveStatus = "running"
 		} else if st != nil && st.Active == "failed" {
 			liveStatus = "failed"

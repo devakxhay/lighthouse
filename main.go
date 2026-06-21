@@ -14,6 +14,7 @@ import (
 	"github.com/devakxhay/lighthouse/internal/db"
 	"github.com/devakxhay/lighthouse/internal/nginx"
 	"github.com/devakxhay/lighthouse/internal/process"
+	"github.com/devakxhay/lighthouse/internal/runtime"
 	"github.com/devakxhay/lighthouse/internal/ssl"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -53,6 +54,12 @@ func main() {
 	database, err := db.New(cfg.Dirs.Data + "/lighthouse.db")
 	if err != nil {
 		log.Fatalf("open db: %v", err)
+	}
+
+	// Runtime detection on startup
+	detector := &runtime.Detector{DB: database}
+	if _, err := detector.Detect(); err != nil {
+		log.Printf("warn: runtime detection: %v", err)
 	}
 
 	// Nginx manager — init git repo
@@ -113,6 +120,12 @@ func main() {
 
 	// API
 	r.Route("/api", func(r chi.Router) {
+		r.Route("/runtimes", func(r chi.Router) {
+			r.Get("/", h.GetRuntimes)
+			r.Post("/detect", h.DetectRuntimes)
+			r.Put("/{name}", h.OverrideRuntime)
+		})
+
 		r.Route("/apps", func(r chi.Router) {
 			r.Get("/", h.ListApps)
 			r.Post("/", h.CreateApp)

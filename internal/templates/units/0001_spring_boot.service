@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/java \
+ExecStart={{.JavaBin}} \
   -Xms256m -Xmx512m \
   -jar {{.BinaryPath}}
 WorkingDirectory={{.AppDir}}

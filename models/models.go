@@ -65,3 +65,12 @@ type AuditLog struct {
 	TriggeredBy string      `json:"triggered_by"`
 	Details     string      `json:"details"`
 }
+
+type Runtime struct {
+	ID         int64     `json:"id"`
+	Name       string    `json:"name"`
+	BinPath    string    `json:"bin_path"`
+	DetectedAt time.Time `json:"detected_at"`
+	Overridden bool      `json:"overridden"`
+}
+

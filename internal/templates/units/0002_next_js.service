@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/npm run start
+ExecStart={{.NpmBin}} run start
 WorkingDirectory={{.AppDir}}
 EnvironmentFile={{.EnvFile}}
 Environment=NODE_ENV=production

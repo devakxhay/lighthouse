@@ -12,8 +12,22 @@ function app() {
     nginxHistory: [],
     form: { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '' },
 
+    runtimes: [],
+    missingRuntimes: [],
+    showSettings: false,
+    detecting: false,
+    editingRuntime: null,
+    editPath: '',
+    requiredRuntime: { 'spring-boot': 'java', 'nextjs': 'npm', 'go': 'go' },
+
+    isRuntimeMissing(type) {
+      const req = this.requiredRuntime[type]
+      return req ? this.missingRuntimes.includes(req) : false
+    },
+
     async init() {
       await this.loadApps()
+      await this.loadRuntimes()
     },
 
     async loadApps() {
@@ -147,6 +161,65 @@ function app() {
     showAlert(msg, type) {
       this.alert = { msg, type }
       setTimeout(() => { this.alert = { msg: '', type: '' } }, 4000)
+    },
+
+    async loadRuntimes() {
+      try {
+        const r = await fetch('/api/runtimes')
+        const data = await r.json()
+        if (r.ok) {
+          this.runtimes = data
+          this.missingRuntimes = data.filter(rt => !rt.found).map(rt => rt.name)
+        }
+      } catch (e) {
+        console.error('Failed to load runtimes', e)
+      }
+    },
+
+    startEditRuntime(name, currentPath) {
+      this.editingRuntime = name
+      this.editPath = currentPath
+    },
+
+    async saveRuntimeOverride(name) {
+      try {
+        const r = await fetch(`/api/runtimes/${name}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bin_path: this.editPath })
+        })
+        const data = await r.json()
+        if (!r.ok) {
+          this.showAlert(data.error || 'Failed to update runtime', 'err')
+          return
+        }
+        this.editingRuntime = null
+        this.showAlert(`Runtime ${name} updated!`, 'ok')
+        await this.loadRuntimes()
+      } catch (e) {
+        this.showAlert('Network error', 'err')
+      }
+    },
+
+    async reDetectRuntimes(force) {
+      this.detecting = true
+      try {
+        const r = await fetch(`/api/runtimes/detect?force=${force ? 'true' : 'false'}`, {
+          method: 'POST'
+        })
+        const data = await r.json()
+        if (!r.ok) {
+          this.showAlert(data.error || 'Failed to detect runtimes', 'err')
+          return
+        }
+        this.runtimes = data
+        this.missingRuntimes = data.filter(rt => !rt.found).map(rt => rt.name)
+        this.showAlert('Runtime detection completed', 'ok')
+      } catch (e) {
+        this.showAlert('Network error during detection', 'err')
+      } finally {
+        this.detecting = false
+      }
     }
   }
 }

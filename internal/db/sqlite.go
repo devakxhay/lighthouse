@@ -39,6 +39,7 @@ func (d *DB) migrate() error {
 		"migrations/0003_git_url.sql",
 		"migrations/0004_unique_port.sql",
 		"migrations/0005_entry_point.sql",
+		"migrations/0006_runtimes.sql",
 	}
 	for _, m := range migrations {
 		schema, err := migrationFS.ReadFile(m)
@@ -179,3 +180,81 @@ func (d *DB) GetAuditLogs(appName string, limit int) ([]models.AuditLog, error) 
 	}
 	return logs, nil
 }
+
+// ---- Runtimes ----
+
+func (d *DB) UpsertRuntime(name, path string, overridden bool) error {
+	var existingOverridden bool
+	err := d.conn.QueryRow("SELECT overridden FROM runtimes WHERE name = ?", name).Scan(&existingOverridden)
+	if err == sql.ErrNoRows {
+		_, err = d.conn.Exec(`
+			INSERT INTO runtimes (name, bin_path, detected_at, overridden)
+			VALUES (?, ?, CURRENT_TIMESTAMP, ?)`,
+			name, path, overridden,
+		)
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	if existingOverridden && !overridden {
+		return nil
+	}
+
+	_, err = d.conn.Exec(`
+		UPDATE runtimes
+		SET bin_path = ?, detected_at = CURRENT_TIMESTAMP, overridden = ?
+		WHERE name = ?`,
+		path, overridden, name,
+	)
+	return err
+}
+
+func (d *DB) GetRuntime(name string) (*models.Runtime, error) {
+	r := &models.Runtime{}
+	var detectedAt sql.NullTime
+	err := d.conn.QueryRow(`
+		SELECT id, name, bin_path, detected_at, overridden
+		FROM runtimes WHERE name = ?`, name).
+		Scan(&r.ID, &r.Name, &r.BinPath, &detectedAt, &r.Overridden)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	r.DetectedAt = detectedAt.Time
+	return r, nil
+}
+
+func (d *DB) ListRuntimes() ([]models.Runtime, error) {
+	rows, err := d.conn.Query(`
+		SELECT id, name, bin_path, detected_at, overridden
+		FROM runtimes ORDER BY name ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var runtimes []models.Runtime
+	for rows.Next() {
+		r := models.Runtime{}
+		var detectedAt sql.NullTime
+		if err := rows.Scan(&r.ID, &r.Name, &r.BinPath, &detectedAt, &r.Overridden); err != nil {
+			return nil, err
+		}
+		r.DetectedAt = detectedAt.Time
+		runtimes = append(runtimes, r)
+	}
+	return runtimes, nil
+}
+
+func (d *DB) SetRuntimeOverride(name, path string) error {
+	return d.UpsertRuntime(name, path, true)
+}
+
+func (d *DB) ResetRuntimeOverrides() error {
+	_, err := d.conn.Exec(`UPDATE runtimes SET overridden = 0`)
+	return err
+}
+

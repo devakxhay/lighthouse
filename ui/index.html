@@ -14,6 +14,11 @@
   <!-- Topbar -->
   {{template "topbar" .}}
 
+  <!-- Warning Banner -->
+  <div x-show="missingRuntimes.length > 0" class="alert" style="background:#d2992222; border:1px solid #d2992244; color:var(--yellow); margin: 20px auto 0 auto; max-width: 1100px; padding: 12px 24px;" x-transition>
+    ⚠ <span x-text="missingRuntimes.join(', ')"></span> not found — some deployments will fail. → <a href="#" @click.prevent="showSettings = true" style="color:var(--yellow); font-weight: 600; text-decoration: underline;">Open Settings</a>
+  </div>
+
   <!-- Main -->
   <div class="main">
 
@@ -30,6 +35,61 @@
 
   <!-- Create App Modal -->
   {{template "create_modal" .}}
+
+  <!-- Settings Modal -->
+  <div x-show="showSettings" class="modal-backdrop" style="display: none;" x-transition>
+    <div class="modal" @click.away="showSettings = false">
+      <div class="modal-header">
+        <h2>Runtime Settings</h2>
+        <button class="btn btn-sm" @click="showSettings = false">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; flex-direction:column; gap:16px">
+          <template x-for="r in runtimes" :key="r.name">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--border)">
+              <div style="flex:1">
+                <div style="display:flex; align-items:center; gap:8px">
+                  <strong x-text="r.name"></strong>
+                  <template x-if="r.found">
+                    <span style="font-size:12px; color:var(--green); display:flex; align-items:center; gap:4px">
+                      <span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span> found
+                    </span>
+                  </template>
+                  <template x-if="!r.found">
+                    <span style="font-size:12px; color:var(--red); display:flex; align-items:center; gap:4px">
+                      <span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span> missing
+                    </span>
+                  </template>
+                </div>
+                <div style="margin-top:4px">
+                  <template x-if="editingRuntime !== r.name">
+                    <span style="font-family:monospace; color:var(--muted); font-size:12px" x-text="r.bin_path || '—'"></span>
+                  </template>
+                  <template x-if="editingRuntime === r.name">
+                    <div style="display:flex; gap:8px; margin-top:4px">
+                      <input type="text" class="form-input" x-model="editPath" style="padding:4px 8px; font-size:12px">
+                      <button class="btn btn-sm btn-primary" @click="saveRuntimeOverride(r.name)">Save</button>
+                      <button class="btn btn-sm" @click="editingRuntime = null">Cancel</button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div x-show="editingRuntime !== r.name">
+                <button class="btn btn-sm btn-sm" @click="startEditRuntime(r.name, r.bin_path)">edit</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" @click="reDetectRuntimes(true)" :disabled="detecting">
+          <span x-show="!detecting">↺ Re-detect</span>
+          <span x-show="detecting">Detecting...</span>
+        </button>
+        <button class="btn btn-sm btn-primary" @click="showSettings = false">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>

@@ -16,6 +16,9 @@ type AppData struct {
 	EnvFile    string
 	CertPath   string
 	KeyPath    string
+	JavaBin    string
+	NpmBin     string
+	GoBin      string
 }
 
 //go:embed units/*.service

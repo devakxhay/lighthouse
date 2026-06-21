@@ -13,6 +13,7 @@ import (
 	"github.com/devakxhay/lighthouse/internal/db"
 	"github.com/devakxhay/lighthouse/internal/nginx"
 	"github.com/devakxhay/lighthouse/internal/process"
+	"github.com/devakxhay/lighthouse/internal/runtime"
 	"github.com/devakxhay/lighthouse/internal/ssl"
 	"github.com/devakxhay/lighthouse/internal/templates"
 	"github.com/devakxhay/lighthouse/models"
@@ -173,6 +174,25 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, fmt.Sprintf("[%s] %s", step, err))
 	}
 
+	// Pre-flight check: required runtime must be configured
+	var requiredRuntime = map[models.AppType]string{
+		models.AppTypeSpringBoot: "java",
+		models.AppTypeNextJS:     "npm",
+		models.AppTypeGo:         "go",
+	}
+
+	if reqRuntime, ok := requiredRuntime[app.Type]; ok {
+		rt, err := h.DB.GetRuntime(reqRuntime)
+		if err != nil {
+			fail("CHECK_RUNTIME", fmt.Errorf("failed to retrieve runtime details: %w", err))
+			return
+		}
+		if rt == nil || rt.BinPath == "" {
+			writeErr(w, 400, fmt.Sprintf("%s not configured. Go to Settings to set the path.", reqRuntime))
+			return
+		}
+	}
+
 	// 0. Pull code and build
 	if err := h.pullAndBuild(app); err != nil {
 		fail("BUILD", err)
@@ -241,6 +261,18 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		Details: "Nginx config written and reloaded",
 	})
 
+	// Fetch all runtime paths from DB to populate AppData
+	var javaBin, npmBin, goBin string
+	if rt, _ := h.DB.GetRuntime("java"); rt != nil {
+		javaBin = rt.BinPath
+	}
+	if rt, _ := h.DB.GetRuntime("npm"); rt != nil {
+		npmBin = rt.BinPath
+	}
+	if rt, _ := h.DB.GetRuntime("go"); rt != nil {
+		goBin = rt.BinPath
+	}
+
 	// 5. Write systemd unit
 	unitContent, err := templates.RenderSystemdUnit(string(app.Type), templates.AppData{
 		Name:       app.Name,
@@ -248,6 +280,9 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		AppDir:     app.AppDir,
 		Port:       app.Port,
 		EnvFile:    envFile,
+		JavaBin:    javaBin,
+		NpmBin:     npmBin,
+		GoBin:      goBin,
 	})
 	if err != nil {
 		fail("SYSTEMD_TEMPLATE", err)
@@ -471,3 +506,86 @@ func (h *Handler) UpdateEntryPoint(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, 200, map[string]string{"status": "updated", "entry_point": req.EntryPoint})
 }
+
+// ---- Runtime Handlers ----
+
+type RuntimeResponse struct {
+	Name       string `json:"name"`
+	BinPath    string `json:"bin_path"`
+	Found      bool   `json:"found"`
+	Overridden bool   `json:"overridden"`
+}
+
+// GET /api/runtimes
+func (h *Handler) GetRuntimes(w http.ResponseWriter, r *http.Request) {
+	runtimes, err := h.DB.ListRuntimes()
+	if err != nil {
+		writeErr(w, 500, "failed to list runtimes")
+		return
+	}
+
+	resp := make([]RuntimeResponse, len(runtimes))
+	for i, rt := range runtimes {
+		resp[i] = RuntimeResponse{
+			Name:       rt.Name,
+			BinPath:    rt.BinPath,
+			Found:      rt.BinPath != "",
+			Overridden: rt.Overridden,
+		}
+	}
+	writeJSON(w, 200, resp)
+}
+
+// POST /api/runtimes/detect
+func (h *Handler) DetectRuntimes(w http.ResponseWriter, r *http.Request) {
+	force := r.URL.Query().Get("force") == "true"
+	if force {
+		if err := h.DB.ResetRuntimeOverrides(); err != nil {
+			writeErr(w, 500, fmt.Sprintf("failed to reset overrides: %v", err))
+			return
+		}
+	}
+
+	detector := &runtime.Detector{DB: h.DB}
+	if _, err := detector.Detect(); err != nil {
+		writeErr(w, 500, fmt.Sprintf("runtime detection failed: %v", err))
+		return
+	}
+
+	runtimes, err := h.DB.ListRuntimes()
+	if err != nil {
+		writeErr(w, 500, "failed to reload runtimes")
+		return
+	}
+
+	resp := make([]RuntimeResponse, len(runtimes))
+	for i, rt := range runtimes {
+		resp[i] = RuntimeResponse{
+			Name:       rt.Name,
+			BinPath:    rt.BinPath,
+			Found:      rt.BinPath != "",
+			Overridden: rt.Overridden,
+		}
+	}
+	writeJSON(w, 200, resp)
+}
+
+// PUT /api/runtimes/{name}
+func (h *Handler) OverrideRuntime(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	var req struct {
+		BinPath string `json:"bin_path"`
+	}
+	if err := decode(r, &req); err != nil {
+		writeErr(w, 400, "invalid request body")
+		return
+	}
+
+	if err := h.DB.SetRuntimeOverride(name, req.BinPath); err != nil {
+		writeErr(w, 500, fmt.Sprintf("failed to set override: %v", err))
+		return
+	}
+
+	writeJSON(w, 200, map[string]string{"status": "updated"})
+}
+

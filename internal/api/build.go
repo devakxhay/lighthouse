@@ -30,17 +30,20 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 			return fmt.Errorf("create parent dir: %w", err)
 		}
 		// Clone repository
+		h.log.Info("cloning git repository", "app", app.Name, "url", app.GitURL)
 		if err := runCmd(filepath.Dir(app.AppDir), "git", "clone", app.GitURL, filepath.Base(app.AppDir)); err != nil {
 			return fmt.Errorf("git clone: %w", err)
 		}
 	} else {
 		// Pull latest
+		h.log.Info("pulling git repository", "app", app.Name)
 		if err := runCmd(app.AppDir, "git", "pull"); err != nil {
 			return fmt.Errorf("git pull: %w", err)
 		}
 	}
 
 	// 2. Build based on type
+	h.log.Info("building application", "app", app.Name, "type", string(app.Type))
 	switch app.Type {
 	case models.AppTypeSpringBoot:
 		var buildErr error
@@ -68,10 +71,14 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 		app.BinaryPath = jarPath
 
 	case models.AppTypeNextJS:
-		if err := runCmd(app.AppDir, "npm", "install"); err != nil {
+		npmBin := "npm"
+		if rt, _ := h.DB.GetRuntime("npm"); rt != nil && rt.BinPath != "" {
+			npmBin = rt.BinPath
+		}
+		if err := runCmd(app.AppDir, npmBin, "install"); err != nil {
 			return fmt.Errorf("npm install: %w", err)
 		}
-		if err := runCmd(app.AppDir, "npm", "run", "build"); err != nil {
+		if err := runCmd(app.AppDir, npmBin, "run", "build"); err != nil {
 			return fmt.Errorf("npm run build: %w", err)
 		}
 
@@ -87,7 +94,12 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 		path, _ := filepath.Abs(filepath.Join(app.AppDir, app.EntryPoint))
 		targetPath, _ := filepath.Abs(app.BinaryPath)
 
-		if err := runCmd(app.AppDir, "go", "build", "-o", targetPath, path); err != nil {
+		goBin := "go"
+		if rt, _ := h.DB.GetRuntime("go"); rt != nil && rt.BinPath != "" {
+			goBin = rt.BinPath
+		}
+
+		if err := runCmd(app.AppDir, goBin, "build", "-o", targetPath, path); err != nil {
 			return fmt.Errorf("go build: %w", err)
 		}
 

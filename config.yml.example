@@ -1,6 +1,5 @@
 ca:
-  cert_path: /etc/lighthouse/ca/ca.crt
-  key_path:  /etc/lighthouse/ca/ca.key
+  dir: /etc/lighthouse/ca
 
 dirs:
   certs: /etc/lighthouse/certs

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/devakxhay/lighthouse/models"
@@ -12,17 +13,21 @@ import (
 
 type DB struct {
 	conn *sql.DB
+	log  *slog.Logger
 }
 
 // ---- Setup ----
 
-func New(path string) (*DB, error) {
+func New(path string, logger *slog.Logger) (*DB, error) {
 	conn, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_foreign_keys=on")
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	d := &DB{conn: conn}
+	d := &DB{
+		conn: conn,
+		log:  logger.With(slog.String("component", "db")),
+	}
 	if err := d.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
@@ -65,9 +70,11 @@ func (d *DB) CreateApp(a *models.App) error {
 		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending, a.GitURL, a.EntryPoint,
 	)
 	if err != nil {
+		d.log.Error("query failed", "op", "CreateApp", "error", err.Error())
 		return err
 	}
 	a.ID, _ = res.LastInsertId()
+	d.log.Debug("app created", "name", a.Name, "id", a.ID)
 	return nil
 }
 
@@ -79,7 +86,11 @@ func (d *DB) GetApp(name string) (*models.App, error) {
 		Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
 			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint)
 	if err == sql.ErrNoRows {
+		d.log.Warn("app not found", "name", name)
 		return nil, nil
+	}
+	if err != nil {
+		d.log.Error("query failed", "op", "GetApp", "error", err.Error())
 	}
 	return a, err
 }
@@ -89,6 +100,7 @@ func (d *DB) ListApps() ([]models.App, error) {
 		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point
 		FROM apps ORDER BY created_at DESC`)
 	if err != nil {
+		d.log.Error("query failed", "op", "ListApps", "error", err.Error())
 		return nil, err
 	}
 	defer rows.Close()
@@ -98,6 +110,7 @@ func (d *DB) ListApps() ([]models.App, error) {
 		a := models.App{}
 		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
 			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint); err != nil {
+			d.log.Error("query failed", "op", "ListAppsScan", "error", err.Error())
 			return nil, err
 		}
 		apps = append(apps, a)
@@ -107,21 +120,35 @@ func (d *DB) ListApps() ([]models.App, error) {
 
 func (d *DB) UpdateAppStatus(name string, status models.AppStatus) error {
 	_, err := d.conn.Exec(`UPDATE apps SET status = ? WHERE name = ?`, status, name)
-	return err
+	if err != nil {
+		d.log.Error("query failed", "op", "UpdateAppStatus", "error", err.Error())
+		return err
+	}
+	d.log.Debug("app status updated", "name", name, "status", string(status))
+	return nil
 }
 
 func (d *DB) UpdateAppPaths(name string, appDir string, binaryPath string) error {
 	_, err := d.conn.Exec(`UPDATE apps SET app_dir = ?, binary_path = ? WHERE name = ?`, appDir, binaryPath, name)
+	if err != nil {
+		d.log.Error("query failed", "op", "UpdateAppPaths", "error", err.Error())
+	}
 	return err
 }
 
 func (d *DB) UpdateAppEntryPoint(name string, entryPoint string) error {
 	_, err := d.conn.Exec(`UPDATE apps SET entry_point = ? WHERE name = ?`, entryPoint, name)
+	if err != nil {
+		d.log.Error("query failed", "op", "UpdateAppEntryPoint", "error", err.Error())
+	}
 	return err
 }
 
 func (d *DB) DeleteApp(name string) error {
 	_, err := d.conn.Exec(`DELETE FROM apps WHERE name = ?`, name)
+	if err != nil {
+		d.log.Error("query failed", "op", "DeleteApp", "error", err.Error())
+	}
 	return err
 }
 
@@ -135,7 +162,12 @@ func (d *DB) SaveCert(c *models.Cert) error {
 		VALUES (?, ?, ?, ?, ?, ?)`,
 		c.AppID, c.Domain, c.IssuedAt, c.ExpiresAt, c.CertPath, c.KeyPath,
 	)
-	return err
+	if err != nil {
+		d.log.Error("query failed", "op", "SaveCert", "error", err.Error())
+		return err
+	}
+	d.log.Debug("cert saved", "app_id", c.AppID, "domain", c.Domain, "expires", c.ExpiresAt.Format("2006-01-02"))
+	return nil
 }
 
 func (d *DB) GetCert(appID int64) (*models.Cert, error) {
@@ -145,7 +177,11 @@ func (d *DB) GetCert(appID int64) (*models.Cert, error) {
 		FROM certs WHERE app_id = ?`, appID).
 		Scan(&c.ID, &c.AppID, &c.Domain, &c.IssuedAt, &c.ExpiresAt, &c.CertPath, &c.KeyPath)
 	if err == sql.ErrNoRows {
+		d.log.Warn("cert not found", "app_id", appID)
 		return nil, nil
+	}
+	if err != nil {
+		d.log.Error("query failed", "op", "GetCert", "error", err.Error())
 	}
 	return c, err
 }
@@ -153,11 +189,16 @@ func (d *DB) GetCert(appID int64) (*models.Cert, error) {
 // ---- Audit ----
 
 func (d *DB) Log(entry models.AuditLog) {
-	d.conn.Exec(`
+	_, err := d.conn.Exec(`
 		INSERT INTO audit_log (app_name, action, status, triggered_by, details)
 		VALUES (?, ?, ?, ?, ?)`,
 		entry.AppName, entry.Action, entry.Status, entry.TriggeredBy, entry.Details,
 	)
+	if err != nil {
+		d.log.Error("audit log write failed", "error", err.Error())
+		return
+	}
+	d.log.Debug("audit log written", "app", entry.AppName, "action", string(entry.Action), "status", entry.Status)
 }
 
 func (d *DB) GetAuditLogs(appName string, limit int) ([]models.AuditLog, error) {
@@ -165,6 +206,7 @@ func (d *DB) GetAuditLogs(appName string, limit int) ([]models.AuditLog, error) 
 		  FROM audit_log WHERE app_name = ? ORDER BY timestamp DESC LIMIT ?`
 	rows, err := d.conn.Query(q, appName, limit)
 	if err != nil {
+		d.log.Error("query failed", "op", "GetAuditLogs", "error", err.Error())
 		return nil, err
 	}
 	defer rows.Close()
@@ -174,6 +216,7 @@ func (d *DB) GetAuditLogs(appName string, limit int) ([]models.AuditLog, error) 
 		l := models.AuditLog{}
 		if err := rows.Scan(&l.ID, &l.Timestamp, &l.AppName, &l.Action,
 			&l.Status, &l.TriggeredBy, &l.Details); err != nil {
+			d.log.Error("query failed", "op", "GetAuditLogsScan", "error", err.Error())
 			return nil, err
 		}
 		logs = append(logs, l)
@@ -192,8 +235,12 @@ func (d *DB) UpsertRuntime(name, path string, overridden bool) error {
 			VALUES (?, ?, CURRENT_TIMESTAMP, ?)`,
 			name, path, overridden,
 		)
+		if err != nil {
+			d.log.Error("query failed", "op", "UpsertRuntimeInsert", "error", err.Error())
+		}
 		return err
 	} else if err != nil {
+		d.log.Error("query failed", "op", "UpsertRuntimeSelect", "error", err.Error())
 		return err
 	}
 
@@ -207,6 +254,9 @@ func (d *DB) UpsertRuntime(name, path string, overridden bool) error {
 		WHERE name = ?`,
 		path, overridden, name,
 	)
+	if err != nil {
+		d.log.Error("query failed", "op", "UpsertRuntimeUpdate", "error", err.Error())
+	}
 	return err
 }
 
@@ -221,6 +271,7 @@ func (d *DB) GetRuntime(name string) (*models.Runtime, error) {
 		return nil, nil
 	}
 	if err != nil {
+		d.log.Error("query failed", "op", "GetRuntime", "error", err.Error())
 		return nil, err
 	}
 	r.DetectedAt = detectedAt.Time
@@ -232,6 +283,7 @@ func (d *DB) ListRuntimes() ([]models.Runtime, error) {
 		SELECT id, name, bin_path, detected_at, overridden
 		FROM runtimes ORDER BY name ASC`)
 	if err != nil {
+		d.log.Error("query failed", "op", "ListRuntimes", "error", err.Error())
 		return nil, err
 	}
 	defer rows.Close()
@@ -241,6 +293,7 @@ func (d *DB) ListRuntimes() ([]models.Runtime, error) {
 		r := models.Runtime{}
 		var detectedAt sql.NullTime
 		if err := rows.Scan(&r.ID, &r.Name, &r.BinPath, &detectedAt, &r.Overridden); err != nil {
+			d.log.Error("query failed", "op", "ListRuntimesScan", "error", err.Error())
 			return nil, err
 		}
 		r.DetectedAt = detectedAt.Time
@@ -255,6 +308,10 @@ func (d *DB) SetRuntimeOverride(name, path string) error {
 
 func (d *DB) ResetRuntimeOverrides() error {
 	_, err := d.conn.Exec(`UPDATE runtimes SET overridden = 0`)
+	if err != nil {
+		d.log.Error("query failed", "op", "ResetRuntimeOverrides", "error", err.Error())
+	}
 	return err
 }
+
 

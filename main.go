@@ -5,13 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
+	"net"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/devakxhay/lighthouse/internal/api"
 	"github.com/devakxhay/lighthouse/internal/config"
 	"github.com/devakxhay/lighthouse/internal/db"
+	"github.com/devakxhay/lighthouse/internal/logger"
 	"github.com/devakxhay/lighthouse/internal/nginx"
 	"github.com/devakxhay/lighthouse/internal/process"
 	"github.com/devakxhay/lighthouse/internal/runtime"
@@ -24,26 +28,28 @@ import (
 var uiFS embed.FS
 
 func main() {
-	//Dev mode flag
+	// Dev mode flag
 	var devMode bool
 	flag.BoolVar(&devMode, "dev", false, "Enable dev mode")
 	flag.Parse()
 
-	if devMode {
-		log.Println("🚀 Dev mode enabled")
-	}
+	// Initialize global logger
+	log := logger.New(devMode)
+
+	log.Info("startup: Lighthouse starting", "version", "x", "port", 9000, "dev", devMode)
 
 	// Config
 	cfgPath := os.Getenv("LIGHTHOUSE_CONFIG")
-
 	if cfgPath == "" {
 		cfgPath = "config.dev.yml"
 	}
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		log.Error("startup: config load failed — fatal", "error", err.Error())
+		os.Exit(1)
 	}
+	log.Info("startup: config loaded", "path", cfgPath)
 
 	// Ensure dirs exist
 	for _, dir := range []string{cfg.Dirs.Certs, cfg.Dirs.Envs, cfg.Dirs.Data} {
@@ -51,59 +57,61 @@ func main() {
 	}
 
 	// DB
-	database, err := db.New(cfg.Dirs.Data + "/lighthouse.db")
+	database, err := db.New(cfg.Dirs.Data+"/lighthouse.db", log)
 	if err != nil {
-		log.Fatalf("open db: %v", err)
+		log.Error("startup: db init failed — fatal", "error", err.Error())
+		os.Exit(1)
 	}
+	log.Info("startup: db initialized", "path", cfg.Dirs.Data+"/lighthouse.db")
 
 	// Runtime detection on startup
-	detector := &runtime.Detector{DB: database}
-	if _, err := detector.Detect(); err != nil {
-		log.Printf("warn: runtime detection: %v", err)
+	detector := runtime.NewDetector(database, log)
+	rts, err := detector.Detect()
+	if err != nil {
+		log.Error("startup: runtime detection failed", "error", err.Error())
+	} else {
+		var runtimeAttrs []any
+		for _, rt := range rts {
+			val := rt.BinPath
+			if val == "" {
+				val = "missing"
+			}
+			runtimeAttrs = append(runtimeAttrs, rt.Name, val)
+		}
+		log.Info("startup: runtime detection complete", runtimeAttrs...)
 	}
 
 	// Nginx manager — init git repo
-	ngx := &nginx.Manager{
-		SitesAvailable: cfg.Nginx.SitesAvailable,
-		SitesEnabled:   cfg.Nginx.SitesEnabled,
-		DevMode:        devMode,
-	}
+	ngx := nginx.NewManager(cfg.Nginx.SitesAvailable, cfg.Nginx.SitesEnabled, devMode, log)
 	if err := ngx.Init(); err != nil {
-		log.Printf("warn: nginx git init: %v", err)
+		log.Error("startup: nginx git init failed", "error", err.Error())
+	} else {
+		log.Info("startup: nginx git repo initialized", "path", cfg.Nginx.SitesAvailable)
 	}
 
+	pm := process.NewManager(cfg.Dirs.Units, devMode, log)
+	sslGen := ssl.NewGenerator(cfg.CA.Dir, cfg.Dirs.Certs, log)
+
 	// Handler
-	h := &api.Handler{
-		DB:    database,
-		Cfg:   cfg,
-		Nginx: ngx,
-		Process: &process.Manager{
-			UnitsDir: cfg.Dirs.Units,
-			DevMode:  devMode,
-		},
-		SSL: &ssl.Generator{
-			CACertPath: cfg.CA.CertPath,
-			CAKeyPath:  cfg.CA.KeyPath,
-			CertsDir:   cfg.Dirs.Certs,
-		},
-	}
+	h := api.NewHandler(database, cfg, ngx, pm, sslGen, log)
 
 	// Router
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(HTTPLogger(log))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.CleanPath)
 
 	// UI
 	tmpl, err := template.ParseFS(uiFS, "ui/index.html", "ui/components/*.html")
 	if err != nil {
-		log.Fatalf("parse templates: %v", err)
+		log.Error("parse templates failed", "error", err.Error())
+		os.Exit(1)
 	}
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		if err := tmpl.Execute(w, nil); err != nil {
-			log.Printf("render index template: %v", err)
+			log.Error("render index template failed", "error", err.Error())
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 	})
@@ -120,6 +128,8 @@ func main() {
 
 	// API
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/certs", h.GetCerts)
+
 		r.Route("/runtimes", func(r chi.Router) {
 			r.Get("/", h.GetRuntimes)
 			r.Post("/detect", h.DetectRuntimes)
@@ -147,8 +157,53 @@ func main() {
 	})
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("🔦 Lighthouse running at http://%s", addr)
+	log.Info("startup: server listening", "addr", addr)
 	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatalf("server: %v", err)
+		log.Error("server failed", "error", err.Error())
+		os.Exit(1)
 	}
 }
+
+// HTTPLogger Chi request logging middleware using slog
+func HTTPLogger(log *slog.Logger) func(http.Handler) http.Handler {
+	logger := log.With(slog.String("component", "http"))
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			t1 := time.Now()
+			defer func() {
+				duration := time.Since(t1)
+				status := ww.Status()
+				ip := getIP(r)
+
+				lvl := slog.LevelInfo
+				if status >= 400 && status < 500 {
+					lvl = slog.LevelWarn
+				} else if status >= 500 {
+					lvl = slog.LevelError
+				}
+
+				path := r.URL.Path
+				if r.URL.RawQuery != "" {
+					path = path + "?" + r.URL.RawQuery
+				}
+
+				logger.Log(r.Context(), lvl, fmt.Sprintf("%-4s %s", r.Method, path),
+					slog.Int("status", status),
+					slog.String("duration", fmt.Sprintf("%.3fs", duration.Seconds())),
+					slog.String("ip", ip),
+				)
+			}()
+			next.ServeHTTP(ww, r)
+		})
+	}
+}
+
+func getIP(r *http.Request) string {
+	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
+		return strings.Split(ip, ",")[0]
+	}
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return host
+}
+

@@ -14,8 +14,7 @@ type Config struct {
 }
 
 type CAConfig struct {
-	CertPath string `yaml:"cert_path"`
-	KeyPath  string `yaml:"key_path"`
+	Dir string `yaml:"dir"`
 }
 
 type DirsConfig struct {
@@ -48,6 +47,10 @@ func Load(path string) (*Config, error) {
 	}
 
 	// defaults
+	if cfg.CA.Dir == "" {
+		cfg.CA.Dir = "/etc/lighthouse/ca"
+	}
+
 	if cfg.Server.Port == 0 {
 		cfg.Server.Port = 9000
 	}

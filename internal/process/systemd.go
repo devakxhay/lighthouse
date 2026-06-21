@@ -2,7 +2,7 @@ package process
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +12,15 @@ import (
 type Manager struct {
 	UnitsDir string
 	DevMode  bool
+	log      *slog.Logger
+}
+
+func NewManager(unitsDir string, devMode bool, logger *slog.Logger) *Manager {
+	return &Manager{
+		UnitsDir: unitsDir,
+		DevMode:  devMode,
+		log:      logger.With(slog.String("component", "systemd")),
+	}
 }
 
 type ServiceStatus struct {
@@ -26,44 +35,71 @@ func (m *Manager) WriteUnit(appName, content string) error {
 		return err
 	}
 	path := filepath.Join(m.UnitsDir, "lighthouse-"+appName+".service")
+	m.log.Debug("writing unit file", "app", appName, "path", path)
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("write unit file: %w", err)
 	}
-	return run("systemctl", "daemon-reload")
+	if err := run("sudo", "systemctl", "daemon-reload"); err != nil {
+		return err
+	}
+	m.log.Info("daemon-reload complete")
+	return nil
 }
 
 // RemoveUnit stops and removes the systemd unit for an app.
 func (m *Manager) RemoveUnit(appName string) error {
 	svc := serviceName(appName)
-	run("systemctl", "stop", svc)
-	run("systemctl", "disable", svc)
+	run("sudo", "systemctl", "stop", svc)
+	run("sudo", "systemctl", "disable", svc)
 	os.Remove(filepath.Join(m.UnitsDir, "lighthouse-"+appName+".service"))
-	return run("systemctl", "daemon-reload")
+	m.log.Warn("unit removed", "app", appName)
+	if err := run("sudo", "systemctl", "daemon-reload"); err != nil {
+		return err
+	}
+	m.log.Info("daemon-reload complete")
+	return nil
 }
 
 // Enable enables the service to start on boot.
 func (m *Manager) Enable(appName string) error {
-	return run("systemctl", "enable", serviceName(appName))
+	if err := run("sudo", "systemctl", "enable", serviceName(appName)); err != nil {
+		return err
+	}
+	m.log.Info("service enabled", "app", appName)
+	return nil
 }
 
 // Start starts the service.
 func (m *Manager) Start(appName string) error {
 	if m.DevMode {
-		log.Printf("[DEV] systemctl start lighthouse-%s.service", appName)
+		m.log.Debug("[DEV MODE] skipping: systemctl start " + serviceName(appName))
 		return nil
 	}
 
-	return run("systemctl", "start", serviceName(appName))
+	if err := run("sudo", "systemctl", "start", serviceName(appName)); err != nil {
+		m.log.Error("start failed", "app", appName, "error", err.Error())
+		return err
+	}
+	m.log.Info("service started", "app", appName)
+	return nil
 }
 
 // Stop stops the service.
 func (m *Manager) Stop(appName string) error {
-	return run("systemctl", "stop", serviceName(appName))
+	if err := run("sudo", "systemctl", "stop", serviceName(appName)); err != nil {
+		return err
+	}
+	m.log.Info("service stopped", "app", appName)
+	return nil
 }
 
 // Restart restarts the service.
 func (m *Manager) Restart(appName string) error {
-	return run("systemctl", "restart", serviceName(appName))
+	if err := run("sudo", "systemctl", "restart", serviceName(appName)); err != nil {
+		return err
+	}
+	m.log.Info("service restarted", "app", appName)
+	return nil
 }
 
 // Status returns the current status of the service.
@@ -73,6 +109,7 @@ func (m *Manager) Status(appName string) (*ServiceStatus, error) {
 		"--no-pager",
 	).Output()
 	if err != nil {
+		m.log.Debug("status check failed", "app", appName, "error", err.Error())
 		return &ServiceStatus{Active: "unknown", Sub: "unknown"}, nil
 	}
 
@@ -91,6 +128,7 @@ func (m *Manager) Status(appName string) (*ServiceStatus, error) {
 			status.Load = parts[1]
 		}
 	}
+	m.log.Debug("status check", "app", appName, "active", status.Active, "sub", status.Sub)
 	return status, nil
 }
 
@@ -120,3 +158,4 @@ func run(name string, args ...string) error {
 	}
 	return nil
 }
+

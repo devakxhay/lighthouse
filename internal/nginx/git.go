@@ -33,6 +33,8 @@ func (m *Manager) Init() error {
 		if err := gitRun(m.SitesAvailable, "config", "user.name", "Lighthouse"); err != nil {
 			return err
 		}
+
+		m.log.Info("git repo initialized", "path", m.SitesAvailable)
 	}
 
 	return nil
@@ -64,6 +66,7 @@ func (m *Manager) History(appName string) ([]CommitEntry, error) {
 			Message:   parts[2],
 		})
 	}
+	m.log.Debug("history fetched", "app", appName, "entries", len(entries))
 	return entries, nil
 }
 
@@ -72,11 +75,13 @@ func (m *Manager) Rollback(appName, hash string) error {
 	confFile := appName + ".conf"
 
 	if err := gitRun(m.SitesAvailable, "checkout", hash, "--", confFile); err != nil {
+		m.log.Error("rollback failed", "app", appName, "hash", hash, "error", err.Error())
 		return fmt.Errorf("checkout failed: %w", err)
 	}
 
 	if err := run("nginx", "-t"); err != nil {
 		gitRun(m.SitesAvailable, "checkout", "HEAD", "--", confFile)
+		m.log.Error("rollback failed", "app", appName, "hash", hash, "error", err.Error())
 		return fmt.Errorf("rollback config is invalid: %w", err)
 	}
 
@@ -84,14 +89,20 @@ func (m *Manager) Rollback(appName, hash string) error {
 	gitRun(m.SitesAvailable, "commit", "-m",
 		fmt.Sprintf("rollback: %s restored to %s", appName, hash))
 
-	return m.Reload()
+	if err := m.Reload(); err != nil {
+		m.log.Error("rollback failed", "app", appName, "hash", hash, "error", err.Error())
+		return err
+	}
+
+	m.log.Info("rollback complete", "app", appName, "hash", hash)
+	return nil
 }
 
 // revert restores the last committed version of the config.
 func (m *Manager) revert(appName string) {
 	gitRun(m.SitesAvailable, "checkout", "HEAD", "--", appName+".conf")
 	run("nginx", "-t")
-	run("systemctl", "reload", "nginx")
+	run("sudo", "systemctl", "reload", "nginx")
 }
 
 // ---- helpers ----
@@ -108,3 +119,4 @@ func gitOutput(dir string, args ...string) (string, error) {
 	out, err := cmd.Output()
 	return string(out), err
 }
+

@@ -43,7 +43,11 @@ EOF
 
 systemctl daemon-reload
 systemctl enable lighthouse
-systemctl start lighthouse
+if systemctl is-active --quiet lighthouse; then
+  systemctl restart lighthouse
+else
+  systemctl start lighthouse
+fi
 
 echo ""
 echo "✓ Lighthouse is running at http://$(hostname -I | awk '{print $1}'):9000"

@@ -30,6 +30,7 @@ type App struct {
 	Status     AppStatus `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 	GitURL     string    `json:"git_url"`
+	EntryPoint string    `json:"entry_point"`
 }
 
 type Cert struct {

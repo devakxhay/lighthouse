@@ -10,7 +10,7 @@ function app() {
     logs: '',
     auditLogs: [],
     nginxHistory: [],
-    form: { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '' },
+    form: { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '' },
 
     async init() {
       await this.loadApps()
@@ -26,7 +26,7 @@ function app() {
     },
 
     async openCreate() {
-      this.form = { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '' }
+      this.form = { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '' }
       this.showCreate = true
       try {
         const r = await fetch('/api/apps/next-port')
@@ -55,6 +55,22 @@ function app() {
         await this.loadApps()
       } catch (e) { this.showAlert('Network error', 'err') }
       this.creating = false
+    },
+
+    async editApp(name, currentEntryPoint) {
+      const newEntryPoint = prompt("Enter relative Go Entry Point (default: main.go):", currentEntryPoint || 'main.go')
+      if (newEntryPoint === null) return
+      try {
+        const r = await fetch(`/api/apps/${name}/entry-point`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entry_point: newEntryPoint })
+        })
+        const data = await r.json()
+        if (!r.ok) { this.showAlert(data.error || 'Failed to update entry point', 'err'); return }
+        this.showAlert(`Go entry point updated to "${newEntryPoint}"!`, 'ok')
+        await this.loadApps()
+      } catch (e) { this.showAlert('Network error', 'err') }
     },
 
     async deployApp(name) {

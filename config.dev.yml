@@ -1,0 +1,17 @@
+# config.dev.yaml
+ca:
+  cert_path: ./dev-ca/ca.crt
+  key_path:  ./dev-ca/ca.key
+
+dirs:
+  certs: ./dev-data/certs
+  envs:  ./dev-data/envs
+  units: ./dev-data/units   ← writes unit files here, doesn't load them
+  data:  ./dev-data
+
+nginx:
+  sites_available: ./dev-data/nginx
+  sites_enabled:   ./dev-data/nginx-enabled
+
+server:
+  port: 9000

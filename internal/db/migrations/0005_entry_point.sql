@@ -1,0 +1,1 @@
+ALTER TABLE apps ADD COLUMN entry_point TEXT NOT NULL DEFAULT '';

@@ -2,6 +2,7 @@ package process
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 type Manager struct {
 	UnitsDir string
+	DevMode  bool
 }
 
 type ServiceStatus struct {
@@ -46,6 +48,11 @@ func (m *Manager) Enable(appName string) error {
 
 // Start starts the service.
 func (m *Manager) Start(appName string) error {
+	if m.DevMode {
+		log.Printf("[DEV] systemctl start lighthouse-%s.service", appName)
+		return nil
+	}
+
 	return run("systemctl", "start", serviceName(appName))
 }
 

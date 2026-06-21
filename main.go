@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -22,10 +23,20 @@ import (
 var uiFS embed.FS
 
 func main() {
+	//Dev mode flag
+	var devMode bool
+	flag.BoolVar(&devMode, "dev", false, "Enable dev mode")
+	flag.Parse()
+
+	if devMode {
+		log.Println("🚀 Dev mode enabled")
+	}
+
 	// Config
 	cfgPath := os.Getenv("LIGHTHOUSE_CONFIG")
+
 	if cfgPath == "" {
-		cfgPath = "config.yml"
+		cfgPath = "config.dev.yml"
 	}
 
 	cfg, err := config.Load(cfgPath)
@@ -48,6 +59,7 @@ func main() {
 	ngx := &nginx.Manager{
 		SitesAvailable: cfg.Nginx.SitesAvailable,
 		SitesEnabled:   cfg.Nginx.SitesEnabled,
+		DevMode:        devMode,
 	}
 	if err := ngx.Init(); err != nil {
 		log.Printf("warn: nginx git init: %v", err)
@@ -60,6 +72,7 @@ func main() {
 		Nginx: ngx,
 		Process: &process.Manager{
 			UnitsDir: cfg.Dirs.Units,
+			DevMode:  devMode,
 		},
 		SSL: &ssl.Generator{
 			CACertPath: cfg.CA.CertPath,
@@ -115,6 +128,7 @@ func main() {
 				r.Get("/audit", h.GetAudit)
 				r.Get("/nginx/history", h.NginxHistory)
 				r.Post("/nginx/rollback", h.NginxRollback)
+				r.Post("/entry-point", h.UpdateEntryPoint)
 			})
 		})
 	})

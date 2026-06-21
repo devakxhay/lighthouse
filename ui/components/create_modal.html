@@ -6,10 +6,16 @@
       <button class="btn btn-sm" @click="showCreate=false">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">App Name *</label>
-        <input class="form-input" x-model="form.name" placeholder="et-backend" />
-        <p class="form-hint">Lowercase, no spaces. Used as service name.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">App Name *</label>
+          <input class="form-input" x-model="form.name" placeholder="et-backend" />
+          <p class="form-hint">Lowercase, no spaces. Used as service name.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Domain *</label>
+          <input class="form-input" x-model="form.domain" placeholder="et-backend.local" />
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -27,10 +33,6 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Domain *</label>
-        <input class="form-input" x-model="form.domain" placeholder="et-backend.local" />
-      </div>
-      <div class="form-group">
         <label class="form-label">Git URL *</label>
         <input class="form-input" x-model="form.git_url" placeholder="https://github.com/user/repo.git" />
         <p class="form-hint">Git repository URL to clone and build from.</p>
@@ -39,6 +41,11 @@
         <label class="form-label">App Directory</label>
         <input class="form-input" x-model="form.app_dir" placeholder="/home/pi/apps/et-backend (optional)" />
         <p class="form-hint">Working directory for the process (auto-generated if left blank).</p>
+      </div>
+      <div class="form-group" x-show="form.type === 'go'">
+        <label class="form-label">Go Entry Point</label>
+        <input class="form-input" x-model="form.entry_point" placeholder="main.go (optional)" />
+        <p class="form-hint">Relative path to the main Go file (defaults to main.go).</p>
       </div>
     </div>
     <div class="modal-footer">

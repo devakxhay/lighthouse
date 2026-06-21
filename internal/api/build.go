@@ -78,7 +78,16 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 	case models.AppTypeGo:
 		app.BinaryPath = filepath.Join(app.AppDir, app.Name)
 		_ = os.Remove(app.BinaryPath)
-		if err := runCmd(app.AppDir, "go", "build", "-o", app.BinaryPath); err != nil {
+
+		entryPoint := app.EntryPoint
+		if entryPoint == "" {
+			entryPoint = "main.go"
+		}
+
+		path, _ := filepath.Abs(filepath.Join(app.AppDir, app.EntryPoint))
+		targetPath, _ := filepath.Abs(app.BinaryPath)
+
+		if err := runCmd(app.AppDir, "go", "build", "-o", targetPath, path); err != nil {
 			return fmt.Errorf("go build: %w", err)
 		}
 

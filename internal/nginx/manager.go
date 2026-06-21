@@ -2,6 +2,7 @@ package nginx
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 type Manager struct {
 	SitesAvailable string
 	SitesEnabled   string
+	DevMode        bool
 }
 
 // WriteConfig writes a new nginx config, tests it, and commits on success.
@@ -46,6 +48,11 @@ func (m *Manager) WriteConfig(appName, content string) error {
 
 // Reload reloads nginx gracefully.
 func (m *Manager) Reload() error {
+	if m.DevMode {
+		log.Printf("[DEV] nginx reload skipped")
+		return nil
+	}
+
 	return run("systemctl", "reload", "nginx")
 }
 

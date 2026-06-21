@@ -38,6 +38,7 @@ func (d *DB) migrate() error {
 		"migrations/0002_unique_domain.sql",
 		"migrations/0003_git_url.sql",
 		"migrations/0004_unique_port.sql",
+		"migrations/0005_entry_point.sql",
 	}
 	for _, m := range migrations {
 		schema, err := migrationFS.ReadFile(m)
@@ -58,9 +59,9 @@ func (d *DB) migrate() error {
 
 func (d *DB) CreateApp(a *models.App) error {
 	res, err := d.conn.Exec(`
-		INSERT INTO apps (name, type, domain, port, binary_path, app_dir, status, git_url)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending, a.GitURL,
+		INSERT INTO apps (name, type, domain, port, binary_path, app_dir, status, git_url, entry_point)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending, a.GitURL, a.EntryPoint,
 	)
 	if err != nil {
 		return err
@@ -72,10 +73,10 @@ func (d *DB) CreateApp(a *models.App) error {
 func (d *DB) GetApp(name string) (*models.App, error) {
 	a := &models.App{}
 	err := d.conn.QueryRow(`
-		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url
+		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point
 		FROM apps WHERE name = ?`, name).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
-			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL)
+			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -84,7 +85,7 @@ func (d *DB) GetApp(name string) (*models.App, error) {
 
 func (d *DB) ListApps() ([]models.App, error) {
 	rows, err := d.conn.Query(`
-		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url
+		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point
 		FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func (d *DB) ListApps() ([]models.App, error) {
 	for rows.Next() {
 		a := models.App{}
 		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
-			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL); err != nil {
+			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint); err != nil {
 			return nil, err
 		}
 		apps = append(apps, a)
@@ -110,6 +111,11 @@ func (d *DB) UpdateAppStatus(name string, status models.AppStatus) error {
 
 func (d *DB) UpdateAppPaths(name string, appDir string, binaryPath string) error {
 	_, err := d.conn.Exec(`UPDATE apps SET app_dir = ?, binary_path = ? WHERE name = ?`, appDir, binaryPath, name)
+	return err
+}
+
+func (d *DB) UpdateAppEntryPoint(name string, entryPoint string) error {
+	_, err := d.conn.Exec(`UPDATE apps SET entry_point = ? WHERE name = ?`, entryPoint, name)
 	return err
 }
 

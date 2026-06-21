@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"strings"
 	"text/template"
 )
 
@@ -60,6 +61,7 @@ func RenderNginxConf(data AppData) (string, error) {
 }
 
 func render(tmpl string, data AppData) (string, error) {
+	tmpl = strings.ReplaceAll(tmpl, "\r", "")
 	t, err := template.New("").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -68,5 +70,5 @@ func render(tmpl string, data AppData) (string, error) {
 	if err := t.Execute(&buf, data); err != nil {
 		return "", err
 	}
-	return buf.String(), nil
+	return strings.ReplaceAll(buf.String(), "\r", ""), nil
 }

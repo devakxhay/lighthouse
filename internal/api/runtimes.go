@@ -45,7 +45,7 @@ func (h *Handler) DetectRuntimes(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	detector := &runtime.Detector{DB: h.DB}
+	detector := runtime.NewDetector(h.DB, h.Cfg, h.log)
 	if _, err := detector.Detect(); err != nil {
 		writeErr(w, 500, fmt.Sprintf("runtime detection failed: %v", err))
 		return

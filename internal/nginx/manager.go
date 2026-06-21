@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Manager struct {
@@ -31,6 +32,13 @@ func (m *Manager) WriteConfig(appName, content string) error {
 	confPath := filepath.Join(m.SitesAvailable, appName+".conf")
 	enabledPath := filepath.Join(m.SitesEnabled, appName+".conf")
 
+	// Prepend metadata headers
+	header := fmt.Sprintf("# managed by lighthouse\n# app: %s\n# generated: %s\n\n", 
+		appName, 
+		time.Now().UTC().Format(time.RFC3339),
+	)
+	content = header + content
+
 	// Write the new config
 	m.log.Debug("writing config", "app", appName, "path", confPath)
 	if err := os.WriteFile(confPath, []byte(content), 0644); err != nil {
@@ -44,8 +52,8 @@ func (m *Manager) WriteConfig(appName, content string) error {
 		return fmt.Errorf("symlink: %w", err)
 	}
 
-	// Test nginx config
-	if err := run("nginx", "-t"); err != nil {
+	// Test nginx config — must run as root (nginx accesses /run/nginx.pid even for -t)
+	if err := run("sudo", "nginx", "-t"); err != nil {
 		m.log.Error("config test failed", "app", appName, "error", err.Error())
 		// Revert on failure
 		m.log.Warn("reverting config", "app", appName, "reason", "config test failed")

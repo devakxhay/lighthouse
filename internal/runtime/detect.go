@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"github.com/devakxhay/lighthouse/internal/config"
 )
 
 type Runtime struct {
@@ -19,11 +20,13 @@ type DB interface {
 type Detector struct {
 	DB  DB
 	log *slog.Logger
+	cfg *config.Config
 }
 
-func NewDetector(database DB, logger *slog.Logger) *Detector {
+func NewDetector(database DB, cfg *config.Config, logger *slog.Logger) *Detector {
 	return &Detector{
 		DB:  database,
+		cfg: cfg,
 		log: logger.With(slog.String("component", "runtime")),
 	}
 }
@@ -38,11 +41,20 @@ func (d *Detector) Detect() ([]Runtime, error) {
 	missingCount := 0
 
 	for _, name := range targets {
-		path, err := exec.LookPath(name)
-		found := err == nil
+		var path string
+		var found bool
+		// Prefer a user‑defined path from configuration if present
+		if custom, ok := d.cfg.RuntimePaths[name]; ok && custom != "" {
+			path = custom
+			found = true
+		} else {
+			var err error
+			path, err = exec.LookPath(name)
+			found = err == nil
+		}
 		if !found {
 			path = ""
-			d.log.Warn(fmt.Sprintf("%s not found in PATH", name))
+			d.log.Warn(fmt.Sprintf("%s not found in PATH or config", name))
 			missingCount++
 		} else {
 			d.log.Debug(fmt.Sprintf("found %s=%s", name, path))

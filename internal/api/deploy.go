@@ -128,7 +128,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Fetch all runtime paths from DB to populate AppData
-	var javaBin, npmBin, goBin string
+	var javaBin, npmBin, goBin, nodeBin string
 	if rt, _ := h.DB.GetRuntime("java"); rt != nil {
 		javaBin = rt.BinPath
 	}
@@ -137,6 +137,23 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 	}
 	if rt, _ := h.DB.GetRuntime("go"); rt != nil {
 		goBin = rt.BinPath
+	}
+	if rt, _ := h.DB.GetRuntime("node"); rt != nil {
+		nodeBin = rt.BinPath
+	}
+
+	pathEnv := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	if nodeBin != "" {
+		pathEnv = filepath.Dir(nodeBin) + ":" + pathEnv
+	}
+	if npmBin != "" {
+		pathEnv = filepath.Dir(npmBin) + ":" + pathEnv
+	}
+	if goBin != "" {
+		pathEnv = filepath.Dir(goBin) + ":" + pathEnv
+	}
+	if javaBin != "" {
+		pathEnv = filepath.Dir(javaBin) + ":" + pathEnv
 	}
 
 	// 5. Write systemd unit
@@ -149,6 +166,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		JavaBin:    javaBin,
 		NpmBin:     npmBin,
 		GoBin:      goBin,
+		PathEnv:    pathEnv,
 	})
 	if err != nil {
 		fail("SYSTEMD_TEMPLATE", err)

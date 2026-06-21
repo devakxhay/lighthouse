@@ -19,6 +19,7 @@ type AppData struct {
 	JavaBin    string
 	NpmBin     string
 	GoBin      string
+	PathEnv    string
 }
 
 //go:embed units/*.service

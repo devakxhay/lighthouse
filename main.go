@@ -65,7 +65,7 @@ func main() {
 	log.Info("startup: db initialized", "path", cfg.Dirs.Data+"/lighthouse.db")
 
 	// Runtime detection on startup
-	detector := runtime.NewDetector(database, log)
+	detector := runtime.NewDetector(database, cfg, log)
 	rts, err := detector.Detect()
 	if err != nil {
 		log.Error("startup: runtime detection failed", "error", err.Error())

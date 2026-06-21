@@ -22,6 +22,40 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 		app.AppDir = filepath.Join(h.Cfg.Dirs.Data, "apps", app.Name)
 	}
 
+	// Build custom environment appending all configured runtime bin paths to PATH
+	var customPaths []string
+	runtimes, err := h.DB.ListRuntimes()
+	if err == nil {
+		for _, rt := range runtimes {
+			if rt.BinPath != "" {
+				customPaths = append(customPaths, filepath.Dir(rt.BinPath))
+			}
+		}
+	}
+
+	env := os.Environ()
+	pathVar := ""
+	pathIndex := -1
+	for i, e := range env {
+		if strings.HasPrefix(e, "PATH=") {
+			pathVar = e[5:]
+			pathIndex = i
+			break
+		}
+	}
+	for _, cp := range customPaths {
+		if pathVar == "" {
+			pathVar = cp
+		} else if !strings.Contains(pathVar, cp) {
+			pathVar = cp + ":" + pathVar
+		}
+	}
+	if pathIndex != -1 {
+		env[pathIndex] = "PATH=" + pathVar
+	} else {
+		env = append(env, "PATH="+pathVar)
+	}
+
 	// 1. Clone or Pull
 	gitDir := filepath.Join(app.AppDir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
@@ -31,13 +65,13 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 		}
 		// Clone repository
 		h.log.Info("cloning git repository", "app", app.Name, "url", app.GitURL)
-		if err := runCmd(filepath.Dir(app.AppDir), "git", "clone", app.GitURL, filepath.Base(app.AppDir)); err != nil {
+		if err := runCmdWithEnv(filepath.Dir(app.AppDir), env, "git", "clone", app.GitURL, filepath.Base(app.AppDir)); err != nil {
 			return fmt.Errorf("git clone: %w", err)
 		}
 	} else {
 		// Pull latest
 		h.log.Info("pulling git repository", "app", app.Name)
-		if err := runCmd(app.AppDir, "git", "pull"); err != nil {
+		if err := runCmdWithEnv(app.AppDir, env, "git", "pull"); err != nil {
 			return fmt.Errorf("git pull: %w", err)
 		}
 	}
@@ -48,13 +82,13 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 	case models.AppTypeSpringBoot:
 		var buildErr error
 		if fileExists(filepath.Join(app.AppDir, "gradlew")) {
-			buildErr = runCmd(app.AppDir, "./gradlew", "build", "-x", "test")
+			buildErr = runCmdWithEnv(app.AppDir, env, "./gradlew", "build", "-x", "test")
 		} else if fileExists(filepath.Join(app.AppDir, "mvnw")) {
-			buildErr = runCmd(app.AppDir, "./mvnw", "clean", "package", "-DskipTests")
+			buildErr = runCmdWithEnv(app.AppDir, env, "./mvnw", "clean", "package", "-DskipTests")
 		} else if fileExists(filepath.Join(app.AppDir, "pom.xml")) {
-			buildErr = runCmd(app.AppDir, "mvn", "clean", "package", "-DskipTests")
+			buildErr = runCmdWithEnv(app.AppDir, env, "mvn", "clean", "package", "-DskipTests")
 		} else if fileExists(filepath.Join(app.AppDir, "build.gradle")) || fileExists(filepath.Join(app.AppDir, "build.gradle.kts")) {
-			buildErr = runCmd(app.AppDir, "gradle", "build", "-x", "test")
+			buildErr = runCmdWithEnv(app.AppDir, env, "gradle", "build", "-x", "test")
 		} else {
 			return errors.New("spring-boot build tools not found (gradlew, mvnw, pom.xml, or build.gradle)")
 		}
@@ -75,10 +109,10 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 		if rt, _ := h.DB.GetRuntime("npm"); rt != nil && rt.BinPath != "" {
 			npmBin = rt.BinPath
 		}
-		if err := runCmd(app.AppDir, npmBin, "install"); err != nil {
+		if err := runCmdWithEnv(app.AppDir, env, npmBin, "install"); err != nil {
 			return fmt.Errorf("npm install: %w", err)
 		}
-		if err := runCmd(app.AppDir, npmBin, "run", "build"); err != nil {
+		if err := runCmdWithEnv(app.AppDir, env, npmBin, "run", "build"); err != nil {
 			return fmt.Errorf("npm run build: %w", err)
 		}
 
@@ -91,7 +125,7 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 			entryPoint = "main.go"
 		}
 
-		path, _ := filepath.Abs(filepath.Join(app.AppDir, app.EntryPoint))
+		path, _ := filepath.Abs(filepath.Join(app.AppDir, entryPoint))
 		targetPath, _ := filepath.Abs(app.BinaryPath)
 
 		goBin := "go"
@@ -99,7 +133,15 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 			goBin = rt.BinPath
 		}
 
-		if err := runCmd(app.AppDir, goBin, "build", "-o", targetPath, path); err != nil {
+		// Explicitly set Go env to writable dirs under the data directory.
+		// The lighthouse system user has no real HOME (/home/lighthouse doesn't exist),
+		// so without this go build fails: "could not create module cache".
+		goEnv := append(env,
+			"HOME="+h.Cfg.Dirs.Data,
+			"GOPATH="+filepath.Join(h.Cfg.Dirs.Data, "go"),
+			"GOCACHE="+filepath.Join(h.Cfg.Dirs.Data, "go-cache"),
+		)
+		if err := runCmdWithEnv(app.AppDir, goEnv, goBin, "build", "-o", targetPath, path); err != nil {
 			return fmt.Errorf("go build: %w", err)
 		}
 
@@ -155,6 +197,17 @@ func containsAny(s string, substrings ...string) bool {
 func runCmd(dir, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("command failed: %s %v: %s: %w", name, args, string(out), err)
+	}
+	return nil
+}
+
+func runCmdWithEnv(dir string, env []string, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command failed: %s %v: %s: %w", name, args, string(out), err)

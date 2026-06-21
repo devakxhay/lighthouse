@@ -7,10 +7,11 @@ import (
 )
 
 type Config struct {
-	CA     CAConfig     `yaml:"ca"`
-	Dirs   DirsConfig   `yaml:"dirs"`
-	Nginx  NginxConfig  `yaml:"nginx"`
-	Server ServerConfig `yaml:"server"`
+	CA           CAConfig          `yaml:"ca"`
+	Dirs         DirsConfig        `yaml:"dirs"`
+	Nginx        NginxConfig       `yaml:"nginx"`
+	Server       ServerConfig      `yaml:"server"`
+	RuntimePaths map[string]string `yaml:"runtime_paths"`
 }
 
 type CAConfig struct {

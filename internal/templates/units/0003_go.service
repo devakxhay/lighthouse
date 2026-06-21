@@ -3,10 +3,13 @@ Description=Lighthouse: {{.Name}} (Go)
 After=network.target
 
 [Service]
+User=lighthouse
+Group=lighthouse
 Type=simple
 ExecStart={{.BinaryPath}}
 WorkingDirectory={{.AppDir}}
 EnvironmentFile={{.EnvFile}}
+Environment=PATH={{.PathEnv}}
 Restart=always
 RestartSec=5
 StandardOutput=journal

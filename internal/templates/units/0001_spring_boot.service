@@ -3,12 +3,15 @@ Description=Lighthouse: {{.Name}} (Spring Boot)
 After=network.target
 
 [Service]
+User=lighthouse
+Group=lighthouse
 Type=simple
 ExecStart={{.JavaBin}} \
   -Xms256m -Xmx512m \
   -jar {{.BinaryPath}}
 WorkingDirectory={{.AppDir}}
 EnvironmentFile={{.EnvFile}}
+Environment=PATH={{.PathEnv}}
 Restart=always
 RestartSec=10
 StandardOutput=journal

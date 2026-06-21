@@ -3,10 +3,13 @@ Description=Lighthouse: {{.Name}} (Next.js)
 After=network.target
 
 [Service]
+User=lighthouse
+Group=lighthouse
 Type=simple
 ExecStart={{.NpmBin}} run start
 WorkingDirectory={{.AppDir}}
 EnvironmentFile={{.EnvFile}}
+Environment=PATH={{.PathEnv}}
 Environment=NODE_ENV=production
 Environment=PORT={{.Port}}
 Restart=always

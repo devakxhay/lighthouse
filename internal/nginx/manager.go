@@ -52,6 +52,11 @@ func (m *Manager) WriteConfig(appName, content string) error {
 		return fmt.Errorf("symlink: %w", err)
 	}
 
+	// Clean up any orphan symlinks in sites-enabled before testing.
+	// nginx -t validates ALL configs, so a stale symlink from a previously
+	// deleted app would cause this deploy to fail with a misleading error.
+	m.cleanOrphanSymlinks()
+
 	// Test nginx config — must run as root (nginx accesses /run/nginx.pid even for -t)
 	if err := run("sudo", "nginx", "-t"); err != nil {
 		m.log.Error("config test failed", "app", appName, "error", err.Error())
@@ -71,6 +76,28 @@ func (m *Manager) WriteConfig(appName, content string) error {
 
 	// Reload nginx
 	return m.Reload()
+}
+
+// cleanOrphanSymlinks removes symlinks in sites-enabled that point to
+// files that no longer exist in sites-available.
+func (m *Manager) cleanOrphanSymlinks() {
+	entries, err := os.ReadDir(m.SitesEnabled)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		linkPath := filepath.Join(m.SitesEnabled, e.Name())
+		// Only process symlinks
+		info, err := os.Lstat(linkPath)
+		if err != nil || info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		// Check if the target exists
+		if _, err := os.Stat(linkPath); os.IsNotExist(err) {
+			m.log.Warn("removing orphan symlink", "path", linkPath)
+			os.Remove(linkPath)
+		}
+	}
 }
 
 // Reload reloads nginx gracefully.

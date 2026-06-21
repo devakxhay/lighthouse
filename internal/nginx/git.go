@@ -99,9 +99,26 @@ func (m *Manager) Rollback(appName, hash string) error {
 }
 
 // revert restores the last committed version of the config.
+// If the config is new (no prior commit), it removes the file and symlink entirely.
 func (m *Manager) revert(appName string) {
-	gitRun(m.SitesAvailable, "checkout", "HEAD", "--", appName+".conf")
-	run("nginx", "-t")
+	confFile := appName + ".conf"
+	confPath := filepath.Join(m.SitesAvailable, confFile)
+	enabledPath := filepath.Join(m.SitesEnabled, confFile)
+
+	// Check if this file has any prior commits
+	err := gitRun(m.SitesAvailable, "log", "--oneline", "-1", "--", confFile)
+	if err != nil {
+		// No prior commit — this is a brand-new config that failed validation.
+		// Remove the file and symlink entirely.
+		m.log.Info("no prior version to revert to, removing new config", "app", appName)
+		os.Remove(enabledPath)
+		os.Remove(confPath)
+	} else {
+		// Has prior commit — restore it
+		gitRun(m.SitesAvailable, "checkout", "HEAD", "--", confFile)
+	}
+
+	run("sudo", "nginx", "-t")
 	run("sudo", "systemctl", "reload", "nginx")
 }
 

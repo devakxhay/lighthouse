@@ -13,10 +13,11 @@ const (
 type AppStatus string
 
 const (
-	StatusRunning AppStatus = "running"
-	StatusStopped AppStatus = "stopped"
-	StatusFailed  AppStatus = "failed"
-	StatusPending AppStatus = "pending"
+	StatusRunning  AppStatus = "running"
+	StatusStopped  AppStatus = "stopped"
+	StatusFailed   AppStatus = "failed"
+	StatusPending  AppStatus = "pending"
+	StatusBuilding AppStatus = "building"
 )
 
 type App struct {

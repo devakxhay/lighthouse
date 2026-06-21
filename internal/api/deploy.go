@@ -27,9 +27,16 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if app.Status == models.StatusBuilding {
+		h.log.Warn("deploy blocked: already building", "app", name)
+		writeErr(w, 400, "Application is currently building/deploying. Please wait.")
+		return
+	}
+
 	steps := []string{}
 	fail := func(step string, err error) {
 		h.log.Error("deploy failed", "app", name, "step", step, "error", err.Error())
+		h.DB.UpdateAppStatus(name, models.StatusFailed)
 		h.DB.Log(models.AuditLog{
 			AppName: name,
 			Action:  models.ActionDeploy,
@@ -37,6 +44,12 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 			Details: fmt.Sprintf("Failed at step [%s]: %s", step, err),
 		})
 		writeErr(w, 500, fmt.Sprintf("[%s] %s", step, err))
+	}
+
+	// Update status to building
+	if err := h.DB.UpdateAppStatus(name, models.StatusBuilding); err != nil {
+		fail("START_BUILD", err)
+		return
 	}
 
 	// Pre-flight check: required runtime must be configured

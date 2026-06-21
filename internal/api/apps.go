@@ -128,6 +128,19 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if app.Status == models.StatusBuilding {
+		writeErr(w, 400, "Application is currently building/deploying. Please wait.")
+		return
+	}
+	if app.Status == models.StatusPending {
+		writeErr(w, 400, "Application has not been deployed yet. Please deploy it first.")
+		return
+	}
+	if app.Status == models.StatusRunning {
+		writeErr(w, 400, "Application is already running.")
+		return
+	}
+
 	err = h.Process.Start(name)
 	status := "SUCCESS"
 	if err != nil {
@@ -149,6 +162,19 @@ func (h *Handler) Stop(w http.ResponseWriter, r *http.Request) {
 	if err != nil || app == nil {
 		h.log.Warn("app not found", "name", name)
 		writeErr(w, 404, "app not found")
+		return
+	}
+
+	if app.Status == models.StatusBuilding {
+		writeErr(w, 400, "Application is currently building/deploying. Please wait.")
+		return
+	}
+	if app.Status == models.StatusPending {
+		writeErr(w, 400, "Application has not been deployed yet. Please deploy it first.")
+		return
+	}
+	if app.Status == models.StatusStopped {
+		writeErr(w, 400, "Application is already stopped.")
 		return
 	}
 
@@ -176,6 +202,15 @@ func (h *Handler) Restart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if app.Status == models.StatusBuilding {
+		writeErr(w, 400, "Application is currently building/deploying. Please wait.")
+		return
+	}
+	if app.Status == models.StatusPending {
+		writeErr(w, 400, "Application has not been deployed yet. Please deploy it first.")
+		return
+	}
+
 	err = h.Process.Restart(name)
 	status := "SUCCESS"
 	if err != nil {
@@ -186,6 +221,7 @@ func (h *Handler) Restart(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, err.Error())
 		return
 	}
+	h.DB.UpdateAppStatus(name, models.StatusRunning)
 	writeJSON(w, 200, map[string]string{"status": "restarted"})
 }
 

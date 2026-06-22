@@ -127,6 +127,11 @@ func main() {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Write(data)
 	})
+	r.Get("/favicon.png", func(w http.ResponseWriter, req *http.Request) {
+		data, _ := uiFS.ReadFile("ui/favicon.png")
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(data)
+	})
 
 	// API
 	r.Route("/api", func(r chi.Router) {

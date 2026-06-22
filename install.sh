@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
 
-echo "🔦 Installing Lighthouse..."
+# echo "🔦 Installing Lighthouse..."
+
+cat banner.txt
 
 # Create group and user if they don't exist
 getent group lighthouse >/dev/null || groupadd --system lighthouse
@@ -11,6 +13,7 @@ getent passwd lighthouse >/dev/null || useradd --system \
         --no-create-home \
         --shell /usr/sbin/nologin \
         lighthouse
+        
 # Ensure home dir is correct on re-installs / upgrades
 usermod --home /var/lib/lighthouse lighthouse 2>/dev/null || true
 

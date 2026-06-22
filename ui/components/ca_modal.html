@@ -1,0 +1,178 @@
+{{define "ca_modal"}}
+<div class="modal-backdrop" x-show="showCAModal" x-transition @click.self="showCAModal=false" style="display: none;">
+  <div class="modal" @click.stop style="max-width: 640px;">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        <h2 style="font-size:16px; font-weight:600;">Trust Root CA Certificate</h2>
+      </div>
+      <button class="btn btn-sm" @click="showCAModal=false">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- If CA does not exist: show instruction to run install.sh -->
+      <template x-if="!caExists">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="alert alert-err" style="margin-bottom: 0;">
+            <div style="display:flex; align-items:center; gap:8px; font-weight:600; margin-bottom:8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              Root CA Certificate Not Found
+            </div>
+            <p style="font-size: 13px; line-height: 1.5; color: var(--text);">
+              Lighthouse's Certificate Authority has not been initialized. You need to run the installation script as root to set up the CA key and generate the certificate:
+            </p>
+            <div style="display:flex; background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-top: 12px;">
+              <code style="flex:1; padding: 10px 12px; font-family: monospace; font-size: 12px; align-self: center; white-space: nowrap; overflow-x: auto; color:var(--text);">sudo ./install.sh</code>
+              <button class="btn btn-sm" @click="navigator.clipboard.writeText('sudo ./install.sh'); showAlert('Command copied!', 'ok')" style="border:none; border-left:1px solid var(--border); border-radius:0; padding:0 12px; font-weight: 500; background:transparent; color:var(--text);">Copy</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" @click="checkCAStatus()" style="align-self: flex-start;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            Refresh Status
+          </button>
+        </div>
+      </template>
+
+      <!-- If CA exists: show download button and instructions -->
+      <template x-if="caExists">
+        <div>
+          <p style="color:var(--muted); font-size:13px; line-height:1.5; margin-bottom: 20px;">
+            Lighthouse uses a local Certificate Authority (CA) to automatically secure your local apps with HTTPS.
+            To access your apps securely without browser certificate warnings, download and install the root CA certificate on your system.
+          </p>
+
+          <a href="/api/certs/ca" download class="btn btn-primary" style="display:inline-flex; width: 100%; justify-content: center; align-items:center; gap:8px; padding: 12px; font-size: 14px; margin-bottom: 24px; font-weight: 600; text-decoration: none; border-radius: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download CA Certificate
+          </a>
+
+          <div class="tabs" style="margin-bottom:16px;">
+            <div class="tab" :class="caTab === 'mac' ? 'active' : ''" @click="caTab = 'mac'">macOS</div>
+            <div class="tab" :class="caTab === 'windows' ? 'active' : ''" @click="caTab = 'windows'">Windows</div>
+            <div class="tab" :class="caTab === 'linux' ? 'active' : ''" @click="caTab = 'linux'">Linux</div>
+            <div class="tab" :class="caTab === 'mobile' ? 'active' : ''" @click="caTab = 'mobile'">iOS / Android</div>
+            <div class="tab" :class="caTab === 'firefox' ? 'active' : ''" @click="caTab = 'firefox'">Firefox</div>
+          </div>
+
+          <!-- macOS instructions -->
+          <div x-show="caTab === 'mac'">
+            <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px; line-height: 1.5;">
+              <li>Click the <strong>Download CA Certificate</strong> button above.</li>
+              <li>Open <strong>Keychain Access</strong> on your Mac.</li>
+              <li>Drag the downloaded <code>ca.crt</code> file into the <strong>System</strong> keychain (under the System tab on the left).</li>
+              <li>Double-click the imported <strong>Lighthouse Root CA</strong> certificate.</li>
+              <li>Expand the <strong>Trust</strong> section, and set <strong>When using this certificate</strong> to <span style="color:var(--green); font-weight:600;">Always Trust</span>.</li>
+            </ol>
+            <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+              <p style="color:var(--muted); font-size:12px; margin-bottom: 8px;">Or run this command in terminal:</p>
+              <div style="display:flex; background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+                <code style="flex:1; padding: 10px 12px; font-family: monospace; font-size: 11px; align-self: center; white-space: nowrap; overflow-x: auto; color:var(--text);">sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/ca.crt</code>
+                <button class="btn btn-sm" @click="navigator.clipboard.writeText('sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/ca.crt'); showAlert('Command copied!', 'ok')" style="border:none; border-left:1px solid var(--border); border-radius:0; padding:0 12px; font-weight: 500;">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Windows instructions -->
+          <div x-show="caTab === 'windows'">
+            <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px; line-height: 1.5;">
+              <li>Click the <strong>Download CA Certificate</strong> button above.</li>
+              <li>Double-click the downloaded <code>ca.crt</code> file.</li>
+              <li>Click <strong>Install Certificate...</strong>, select <strong>Local Machine</strong>, and click Next.</li>
+              <li>Choose <strong>Place all certificates in the following store</strong>, then click <strong>Browse...</strong>.</li>
+              <li>Select <strong>Trusted Root Certification Authorities</strong>, click OK, and click Next.</li>
+              <li>Click <strong>Finish</strong> and accept any security prompts.</li>
+            </ol>
+            <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+              <p style="color:var(--muted); font-size:12px; margin-bottom: 8px;">Or run in PowerShell as Administrator:</p>
+              <div style="display:flex; background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+                <code style="flex:1; padding: 10px 12px; font-family: monospace; font-size: 11px; align-self: center; white-space: nowrap; overflow-x: auto; color:var(--text);">Import-Certificate -FilePath &quot;$Home\Downloads\ca.crt&quot; -CertStoreLocation Cert:\LocalMachine\Root</code>
+                <button class="btn btn-sm" @click="navigator.clipboard.writeText('Import-Certificate -FilePath &quot;$Home\\Downloads\\ca.crt&quot; -CertStoreLocation Cert:\\LocalMachine\\Root'); showAlert('Command copied!', 'ok')" style="border:none; border-left:1px solid var(--border); border-radius:0; padding:0 12px; font-weight: 500;">Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linux instructions -->
+          <div x-show="caTab === 'linux'">
+            <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px; line-height: 1.5; margin-bottom: 16px;">
+              <li>Click the <strong>Download CA Certificate</strong> button above.</li>
+              <li>Copy the certificate to your system's trusted anchor directory.</li>
+              <li>Run the update tool for your distribution's certificate store.</li>
+            </ol>
+            <div style="border-top: 1px solid var(--border); padding-top: 16px; display:flex; flex-direction:column; gap:12px;">
+              <div>
+                <p style="color:var(--muted); font-size:12px; margin-bottom: 6px;">For Debian / Ubuntu:</p>
+                <div style="display:flex; background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+                  <code style="flex:1; padding: 10px 12px; font-family: monospace; font-size: 11px; align-self: center; white-space: nowrap; overflow-x: auto; color:var(--text);">sudo cp ~/Downloads/ca.crt /usr/local/share/ca-certificates/lighthouse.crt && sudo update-ca-certificates</code>
+                  <button class="btn btn-sm" @click="navigator.clipboard.writeText('sudo cp ~/Downloads/ca.crt /usr/local/share/ca-certificates/lighthouse.crt && sudo update-ca-certificates'); showAlert('Command copied!', 'ok')" style="border:none; border-left:1px solid var(--border); border-radius:0; padding:0 12px; font-weight: 500;">Copy</button>
+                </div>
+              </div>
+              <div>
+                <p style="color:var(--muted); font-size:12px; margin-bottom: 6px;">For Fedora / RHEL / CentOS:</p>
+                <div style="display:flex; background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+                  <code style="flex:1; padding: 10px 12px; font-family: monospace; font-size: 11px; align-self: center; white-space: nowrap; overflow-x: auto; color:var(--text);">sudo cp ~/Downloads/ca.crt /etc/pki/ca-trust/source/anchors/lighthouse.crt && sudo update-ca-trust</code>
+                  <button class="btn btn-sm" @click="navigator.clipboard.writeText('sudo cp ~/Downloads/ca.crt /etc/pki/ca-trust/source/anchors/lighthouse.crt && sudo update-ca-trust'); showAlert('Command copied!', 'ok')" style="border:none; border-left:1px solid var(--border); border-radius:0; padding:0 12px; font-weight: 500;">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile instructions -->
+          <div x-show="caTab === 'mobile'">
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div>
+                <strong style="color:var(--accent); font-size:13px; display:block; margin-bottom: 6px;">iOS / iPadOS:</strong>
+                <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5;">
+                  <li>Download the certificate using Safari, or AirDrop it from your Mac.</li>
+                  <li>Go to <strong>Settings</strong>, tap <strong>Profile Downloaded</strong> at the top.</li>
+                  <li>Tap <strong>Install</strong> in the top-right corner, enter your passcode, and confirm.</li>
+                  <li>Go to <strong>Settings > General > About > Certificate Trust Settings</strong>.</li>
+                  <li>Under "Enable full trust for root certificates", turn on the switch for <strong>Lighthouse Root CA</strong>.</li>
+                </ol>
+              </div>
+              <div style="border-top:1px solid var(--border); padding-top:12px;">
+                <strong style="color:var(--accent); font-size:13px; display:block; margin-bottom: 6px;">Android:</strong>
+                <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5;">
+                  <li>Transfer the <code>ca.crt</code> file to your device.</li>
+                  <li>Open <strong>Settings</strong> and search for "CA Certificate" or navigate to <strong>Security > Encryption & credentials > Install a certificate > CA certificate</strong>.</li>
+                  <li>Tap <strong>Install Anyway</strong> if prompted.</li>
+                  <li>Select the <code>ca.crt</code> file from your device storage.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <!-- Firefox instructions -->
+          <div x-show="caTab === 'firefox'">
+            <div style="display:flex; flex-direction:column; gap:10px; line-height: 1.5;">
+              <p style="color:var(--muted); font-size:13px;">Firefox uses its own independent certificate store rather than the system keychain. To trust Lighthouse in Firefox:</p>
+              <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px;">
+                <li>Click the <strong>Download CA Certificate</strong> button above.</li>
+                <li>In Firefox, type <code>about:preferences#privacy</code> in the address bar.</li>
+                <li>Scroll down to the <strong>Certificates</strong> section and click <strong>View Certificates...</strong>.</li>
+                <li>Select the <strong>Authorities</strong> tab and click <strong>Import...</strong>.</li>
+                <li>Select the downloaded <code>ca.crt</code> file.</li>
+                <li>Check the box for <strong>Trust this CA to identify websites</strong>, then click OK.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </template>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" @click="showCAModal=false">Close</button>
+    </div>
+  </div>
+</div>
+{{end}}

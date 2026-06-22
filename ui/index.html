@@ -36,6 +36,9 @@
   <!-- Create App Modal -->
   {{template "create_modal" .}}
 
+  <!-- CA Certificate Modal -->
+  {{template "ca_modal" .}}
+
   <!-- Settings Modal -->
   <div x-show="showSettings" class="modal-backdrop" style="display: none;" x-transition>
     <div class="modal" @click.away="showSettings = false">

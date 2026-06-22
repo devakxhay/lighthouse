@@ -131,6 +131,8 @@ func main() {
 	// API
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/certs", h.GetCerts)
+		r.Get("/certs/ca", h.GetCACert)
+		r.Get("/certs/ca/status", h.GetCACertStatus)
 
 		r.Route("/runtimes", func(r chi.Router) {
 			r.Get("/", h.GetRuntimes)

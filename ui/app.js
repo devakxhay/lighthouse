@@ -15,6 +15,9 @@ function app() {
     runtimes: [],
     missingRuntimes: [],
     showSettings: false,
+    showCAModal: false,
+    caTab: 'mac',
+    caExists: false,
     detecting: false,
     editingRuntime: null,
     editPath: '',
@@ -28,6 +31,22 @@ function app() {
     async init() {
       await this.loadApps()
       await this.loadRuntimes()
+      await this.checkCAStatus()
+    },
+
+    async checkCAStatus() {
+      try {
+        const r = await fetch('/api/certs/ca/status')
+        const data = await r.json()
+        this.caExists = !!data.exists
+      } catch (e) {
+        this.caExists = false
+      }
+    },
+
+    async openCAModal() {
+      await this.checkCAStatus()
+      this.showCAModal = true
     },
 
     async loadApps() {

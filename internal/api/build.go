@@ -194,16 +194,6 @@ func containsAny(s string, substrings ...string) bool {
 	return false
 }
 
-func runCmd(dir, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("command failed: %s %v: %s: %w", name, args, string(out), err)
-	}
-	return nil
-}
-
 func runCmdWithEnv(dir string, env []string, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir

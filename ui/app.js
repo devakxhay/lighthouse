@@ -16,6 +16,7 @@ function app() {
     missingRuntimes: [],
     showSettings: false,
     showCAModal: false,
+    showAbout: false,
     caTab: 'mac',
     caExists: false,
     detecting: false,

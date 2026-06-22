@@ -1,0 +1,29 @@
+{{define "about_modal"}}
+<div class="modal-backdrop" x-show="showAbout" x-transition @click.self="showAbout=false" style="display: none;">
+  <div class="modal" @click.stop style="max-width: 500px;">
+    <div class="modal-header">
+      <div style="display:flex; align-items:center; gap:8px">
+        <img src="/favicon.png" width="20" height="20" alt="Lighthouse">
+        <h2 style="font-size:16px; font-weight:600;">About Lighthouse</h2>
+      </div>
+      <button class="btn btn-sm" @click="showAbout=false">✕</button>
+    </div>
+    <div class="modal-body" style="line-height:1.6; font-size:14px; color:var(--text);">
+      <p style="margin-bottom:12px;">
+        <strong>Lighthouse</strong> is a lightweight, local web deployment manager designed to host your web applications easily on a single Linux server or Raspberry Pi.
+      </p>
+      <p style="margin-bottom:12px;">
+        Instead of running heavy containers (like Docker), it uses built-in Linux tools like <strong>Systemd</strong> to run services and <strong>Nginx</strong> to proxy traffic. It also acts as a local Certificate Authority to sign HTTPS certificates automatically.
+      </p>
+      <hr style="border:0; border-top:1px solid var(--border); margin:16px 0;">
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:13px; color:var(--muted);">
+        <div><strong>Version:</strong> 1.0.0</div>
+        <div><strong>Technologies:</strong> Go, SQLite, Systemd, Nginx, Dnsmasq, OpenSSL, Alpine.js</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" @click="showAbout=false">Close</button>
+    </div>
+  </div>
+</div>
+{{end}}

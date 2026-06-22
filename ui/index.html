@@ -40,6 +40,9 @@
   <!-- CA Certificate Modal -->
   {{template "ca_modal" .}}
 
+  <!-- About Modal -->
+  {{template "about_modal" .}}
+
   <!-- Settings Modal -->
   <div x-show="showSettings" class="modal-backdrop" style="display: none;" x-transition>
     <div class="modal" @click.away="showSettings = false">

@@ -101,6 +101,16 @@ rm -rf /etc/lighthouse
 rm -rf /var/lib/lighthouse
 echo "✓  Config and data removed"
 
+# Remove dnsmasq configuration symlink
+if [ -L /etc/dnsmasq.d/lighthouse.conf ]; then
+    rm -f /etc/dnsmasq.d/lighthouse.conf
+    echo "✓  Removed dnsmasq configuration symlink"
+fi
+if systemctl is-active --quiet dnsmasq; then
+    systemctl restart dnsmasq || true
+    echo "✓  Restarted dnsmasq"
+fi
+
 # 6. Remove binaries
 rm -f /usr/local/bin/lighthouse
 rm -f /usr/local/bin/lighthouse-install-bins

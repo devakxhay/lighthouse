@@ -154,6 +154,32 @@ func (g *Generator) Revoke(domain string) error {
 	return nil
 }
 
+// Remove revokes the certificate and deletes the certificate/key files.
+func (g *Generator) Remove(domain string) error {
+	// First revoke the certificate
+	if err := g.Revoke(domain); err != nil {
+		g.log.Warn("failed to revoke cert during removal", "domain", domain, "error", err.Error())
+	}
+
+	// Delete key and cert files
+	base := filepath.Join(g.CertsDir, domain)
+	if err := os.Remove(base + ".key"); err != nil && !os.IsNotExist(err) {
+		g.log.Warn("failed to delete key file", "path", base+".key", "error", err.Error())
+	}
+	if err := os.Remove(base + ".crt"); err != nil && !os.IsNotExist(err) {
+		g.log.Warn("failed to delete cert file", "path", base+".crt", "error", err.Error())
+	}
+	if err := os.Remove(base + ".csr"); err != nil && !os.IsNotExist(err) {
+		g.log.Warn("failed to delete csr file", "path", base+".csr", "error", err.Error())
+	}
+	if err := os.Remove(base + ".ext"); err != nil && !os.IsNotExist(err) {
+		g.log.Warn("failed to delete ext file", "path", base+".ext", "error", err.Error())
+	}
+
+	g.log.Info("cert files removed", "domain", domain)
+	return nil
+}
+
 // ListIssued parses index.txt and returns all issued certs
 func (g *Generator) ListIssued() ([]IssuedCert, error) {
 	indexPath := filepath.Join(g.CADir, "index.txt")

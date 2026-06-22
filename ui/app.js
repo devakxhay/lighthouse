@@ -90,6 +90,17 @@ function app() {
       this.creating = false
     },
 
+    async deleteApp(name) {
+      if (!confirm(`Are you sure you want to delete the app "${name}"? This will stop the app and remove its Nginx configuration, SSL certificate, and DNS settings.`)) return
+      try {
+        const r = await fetch(`/api/apps/${name}`, { method: 'DELETE' })
+        const data = await r.json()
+        if (!r.ok) { this.showAlert(data.error || 'Failed to delete app', 'err'); return }
+        this.showAlert(`App "${name}" deleted!`, 'ok')
+        await this.loadApps()
+      } catch (e) { this.showAlert('Network error', 'err') }
+    },
+
     async editApp(name, currentEntryPoint) {
       const newEntryPoint = prompt("Enter relative Go Entry Point (default: main.go):", currentEntryPoint || 'main.go')
       if (newEntryPoint === null) return

@@ -105,10 +105,30 @@ func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
+	app, err := h.DB.GetApp(name)
+	if err != nil {
+		writeErr(w, 500, fmt.Sprintf("failed to get app details: %v", err))
+		return
+	}
+	if app == nil {
+		writeErr(w, 404, "app not found")
+		return
+	}
+
 	h.Process.Stop(name)
 	h.Process.RemoveUnit(name)
 	h.Nginx.RemoveConfig(name)
-	h.DB.DeleteApp(name)
+
+	if app.Domain != "" {
+		if err := h.SSL.Remove(app.Domain); err != nil {
+			h.log.Error("failed to remove SSL cert", "domain", app.Domain, "error", err.Error())
+		}
+	}
+
+	if err := h.DB.DeleteApp(name); err != nil {
+		writeErr(w, 500, fmt.Sprintf("failed to delete app: %v", err))
+		return
+	}
 
 	// Sync DNS config (dnsmasq) after deletion
 	apps, err := h.DB.ListApps()

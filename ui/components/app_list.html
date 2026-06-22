@@ -41,15 +41,15 @@
         <div style="display:flex;align-items:center;gap:12px">
           <span class="badge" :class="statusClass(a.live_status)" x-text="a.live_status || a.status"></span>
           <div class="app-actions">
-            <button class="btn btn-sm" x-show="a.type === 'go'" @click="editApp(a.name, a.entry_point)" title="Edit Entry Point">✏</button>
-            <button class="btn btn-sm" 
-                    @click="deployApp(a.name)" 
-                    :disabled="isRuntimeMissing(a.type)"
-                    :title="isRuntimeMissing(a.type) ? (requiredRuntime[a.type] + ' not configured — open Settings') : 'Deploy'">🚀</button>
+            <button class="btn btn-sm" x-show="a.type === 'go'" @click="editApp(a.name, a.entry_point)"
+              title="Edit Entry Point">✏</button>
+            <button class="btn btn-sm" @click="deployApp(a.name)" :disabled="isRuntimeMissing(a.type)"
+              :title="isRuntimeMissing(a.type) ? (requiredRuntime[a.type] + ' not configured — open Settings') : 'Deploy'">🚀</button>
             <button class="btn btn-sm" @click="controlApp(a.name,'start')" title="Start">▶</button>
             <button class="btn btn-sm" @click="controlApp(a.name,'restart')" title="Restart">↺</button>
             <button class="btn btn-sm" @click="controlApp(a.name,'stop')" title="Stop">■</button>
             <button class="btn btn-sm" @click="openDetail(a)" title="Details">···</button>
+            <button class="btn btn-sm" @click="deleteApp(a.name)" title="Delete">🗑️</button>
           </div>
         </div>
       </div>

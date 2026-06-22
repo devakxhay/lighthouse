@@ -48,6 +48,9 @@ func (m *Manager) Sync(apps []models.App) error {
 
 	localIP := GetLocalIP()
 
+	// Always register lighthouse itself
+	lines = append(lines, fmt.Sprintf("address=/lighthouse.internal/%s", localIP))
+
 	for _, app := range apps {
 		if app.Domain != "" {
 			lines = append(lines, fmt.Sprintf("address=/%s/%s", app.Domain, localIP))

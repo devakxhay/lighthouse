@@ -28,6 +28,7 @@ echo 1000 > $CA_DIR/crlnumber
 
 mkdir -p /etc/lighthouse/certs
 mkdir -p /etc/lighthouse/envs
+touch /etc/lighthouse/dnsmasq.conf
 mkdir -p /var/lib/lighthouse
 mkdir -p /var/lib/lighthouse/go          # GOPATH for go build
 mkdir -p /var/lib/lighthouse/go-cache    # GOCACHE for go build
@@ -132,6 +133,12 @@ chmod 750 /etc/lighthouse/ca          # CA keys — tight
 if [ -f $CA_DIR/private/ca.key ]; then
   chmod 600 $CA_DIR/private/ca.key
 fi
+chmod 644 /etc/lighthouse/dnsmasq.conf
+
+# dnsmasq symlink
+if [ -d /etc/dnsmasq.d ]; then
+  ln -sf /etc/lighthouse/dnsmasq.conf /etc/dnsmasq.d/lighthouse.conf
+fi
 
 # Nginx dirs — lighthouse group gets write
 chown root:lighthouse /etc/nginx/sites-available
@@ -153,7 +160,8 @@ lighthouse ALL=(ALL) NOPASSWD: \
     /usr/bin/systemctl enable lighthouse-*, \
     /usr/bin/systemctl disable lighthouse-*, \
     /usr/bin/systemctl reload nginx, \
-    /usr/sbin/nginx -t
+    /usr/sbin/nginx -t, \
+    /usr/bin/systemctl restart dnsmasq
 EOF
 chmod 440 /etc/sudoers.d/lighthouse
 

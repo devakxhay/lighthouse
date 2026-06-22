@@ -110,6 +110,14 @@ func (h *Handler) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	h.Nginx.RemoveConfig(name)
 	h.DB.DeleteApp(name)
 
+	// Sync DNS config (dnsmasq) after deletion
+	apps, err := h.DB.ListApps()
+	if err == nil {
+		if dnsErr := h.DNS.Sync(apps); dnsErr != nil {
+			h.log.Error("failed to sync DNS records after deletion", "error", dnsErr.Error())
+		}
+	}
+
 	h.log.Info("app deleted", "name", name)
 
 	h.DB.Log(models.AuditLog{

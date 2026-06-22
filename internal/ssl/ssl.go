@@ -25,10 +25,8 @@ func NewGenerator(caDir, certsDir string, logger *slog.Logger) *Generator {
 	}
 }
 
-func (g *Generator) caCert() string    { return filepath.Join(g.CADir, "ca.crt") }
-func (g *Generator) caKey() string     { return filepath.Join(g.CADir, "private", "ca.key") }
-func (g *Generator) caConf() string    { return filepath.Join(g.CADir, "openssl.cnf") }
-func (g *Generator) newCerts() string  { return filepath.Join(g.CADir, "newcerts") }
+func (g *Generator) caCert() string { return filepath.Join(g.CADir, "ca.crt") }
+func (g *Generator) caConf() string { return filepath.Join(g.CADir, "openssl.cnf") }
 
 type CertPaths struct {
 	CertPath  string
@@ -262,4 +260,3 @@ func run(name string, args ...string) error {
 	}
 	return nil
 }
-

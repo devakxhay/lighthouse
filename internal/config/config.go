@@ -11,6 +11,7 @@ type Config struct {
 	Dirs         DirsConfig        `yaml:"dirs"`
 	Nginx        NginxConfig       `yaml:"nginx"`
 	Server       ServerConfig      `yaml:"server"`
+	DNS          DNSConfig         `yaml:"dns"`
 	RuntimePaths map[string]string `yaml:"runtime_paths"`
 }
 
@@ -33,6 +34,10 @@ type NginxConfig struct {
 type ServerConfig struct {
 	Port int    `yaml:"port"`
 	Host string `yaml:"host"`
+}
+
+type DNSConfig struct {
+	DnsmasqConf string `yaml:"dnsmasq_conf"`
 }
 
 func Load(path string) (*Config, error) {
@@ -82,6 +87,14 @@ func Load(path string) (*Config, error) {
 
 	if cfg.Nginx.SitesEnabled == "" {
 		cfg.Nginx.SitesEnabled = "/etc/nginx/sites-enabled"
+	}
+
+	if cfg.DNS.DnsmasqConf == "" {
+		if path == "config.dev.yml" {
+			cfg.DNS.DnsmasqConf = "./dev-data/dnsmasq.conf"
+		} else {
+			cfg.DNS.DnsmasqConf = "/etc/lighthouse/dnsmasq.conf"
+		}
 	}
 
 	return cfg, nil

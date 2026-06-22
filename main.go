@@ -15,6 +15,7 @@ import (
 	"github.com/devakxhay/lighthouse/internal/api"
 	"github.com/devakxhay/lighthouse/internal/config"
 	"github.com/devakxhay/lighthouse/internal/db"
+	"github.com/devakxhay/lighthouse/internal/dns"
 	"github.com/devakxhay/lighthouse/internal/logger"
 	"github.com/devakxhay/lighthouse/internal/nginx"
 	"github.com/devakxhay/lighthouse/internal/process"
@@ -91,9 +92,10 @@ func main() {
 
 	pm := process.NewManager(cfg.Dirs.Units, devMode, log)
 	sslGen := ssl.NewGenerator(cfg.CA.Dir, cfg.Dirs.Certs, log)
+	dnsMgr := dns.NewManager(cfg.DNS.DnsmasqConf, devMode, log)
 
 	// Handler
-	h := api.NewHandler(database, cfg, ngx, pm, sslGen, log)
+	h := api.NewHandler(database, cfg, ngx, pm, sslGen, dnsMgr, log)
 
 	// Router
 	r := chi.NewRouter()

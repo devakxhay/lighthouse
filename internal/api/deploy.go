@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devakxhay/lighthouse/internal/ssl"
 	"github.com/devakxhay/lighthouse/internal/templates"
 	"github.com/devakxhay/lighthouse/models"
 	"github.com/go-chi/chi/v5"
@@ -86,29 +87,56 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Generate SSL cert
-	certPaths, err := h.SSL.Generate(app.Domain)
-	if err != nil {
-		fail("CERT_GEN", err)
-		return
-	}
-	steps = append(steps, "cert")
+	var certPaths *ssl.CertPaths
+	existingCert, err := h.DB.GetCert(app.ID)
+	if err == nil && existingCert != nil &&
+		existingCert.Domain == app.Domain &&
+		existingCert.CertPath != "" &&
+		existingCert.KeyPath != "" &&
+		time.Now().Before(existingCert.ExpiresAt) {
 
-	// 2. Save cert to DB
-	cert := &models.Cert{
-		AppID:     app.ID,
-		Domain:    app.Domain,
-		IssuedAt:  certPaths.IssuedAt,
-		ExpiresAt: certPaths.ExpiresAt,
-		CertPath:  certPaths.CertPath,
-		KeyPath:   certPaths.KeyPath,
+		// Check if files actually exist and the cert is valid
+		if _, errCert := os.Stat(existingCert.CertPath); errCert == nil {
+			if _, errKey := os.Stat(existingCert.KeyPath); errKey == nil {
+				if errVerify := h.SSL.Verify(existingCert.CertPath); errVerify == nil {
+					h.log.Info("cert already generated and valid, skipping generation", "domain", app.Domain)
+					certPaths = &ssl.CertPaths{
+						CertPath:  existingCert.CertPath,
+						KeyPath:   existingCert.KeyPath,
+						IssuedAt:  existingCert.IssuedAt,
+						ExpiresAt: existingCert.ExpiresAt,
+					}
+				}
+			}
+		}
 	}
-	h.DB.SaveCert(cert)
-	h.DB.Log(models.AuditLog{
-		AppName: name,
-		Action:  models.ActionCertGen,
-		Status:  "SUCCESS",
-		Details: fmt.Sprintf("Cert for %s — expires %s", app.Domain, certPaths.ExpiresAt.Format("2006-01-02")),
-	})
+
+	if certPaths == nil {
+		var genErr error
+		certPaths, genErr = h.SSL.Generate(app.Domain)
+		if genErr != nil {
+			fail("CERT_GEN", genErr)
+			return
+		}
+		steps = append(steps, "cert")
+
+		// 2. Save cert to DB
+		cert := &models.Cert{
+			AppID:     app.ID,
+			Domain:    app.Domain,
+			IssuedAt:  certPaths.IssuedAt,
+			ExpiresAt: certPaths.ExpiresAt,
+			CertPath:  certPaths.CertPath,
+			KeyPath:   certPaths.KeyPath,
+		}
+		h.DB.SaveCert(cert)
+		h.DB.Log(models.AuditLog{
+			AppName: name,
+			Action:  models.ActionCertGen,
+			Status:  "SUCCESS",
+			Details: fmt.Sprintf("Cert for %s — expires %s", app.Domain, certPaths.ExpiresAt.Format("2006-01-02")),
+		})
+	}
 
 	// 3. Write env file (empty if none set)
 	envFile := filepath.Join(h.Cfg.Dirs.Envs, name+".env")
@@ -205,6 +233,16 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	steps = append(steps, "start")
+
+	// 7. Sync DNS config (dnsmasq)
+	apps, err := h.DB.ListApps()
+	if err == nil {
+		if dnsErr := h.DNS.Sync(apps); dnsErr != nil {
+			h.log.Error("failed to sync DNS records", "error", dnsErr.Error())
+		} else {
+			steps = append(steps, "dns")
+		}
+	}
 
 	h.DB.UpdateAppStatus(name, models.StatusRunning)
 	h.DB.Log(models.AuditLog{

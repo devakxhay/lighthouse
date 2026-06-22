@@ -9,6 +9,7 @@ import (
 
 	"github.com/devakxhay/lighthouse/internal/config"
 	"github.com/devakxhay/lighthouse/internal/db"
+	"github.com/devakxhay/lighthouse/internal/dns"
 	"github.com/devakxhay/lighthouse/internal/nginx"
 	"github.com/devakxhay/lighthouse/internal/process"
 	"github.com/devakxhay/lighthouse/internal/ssl"
@@ -20,16 +21,18 @@ type Handler struct {
 	Nginx   *nginx.Manager
 	Process *process.Manager
 	SSL     *ssl.Generator
+	DNS     *dns.Manager
 	log     *slog.Logger
 }
 
-func NewHandler(db *db.DB, cfg *config.Config, ngx *nginx.Manager, proc *process.Manager, sslGen *ssl.Generator, logger *slog.Logger) *Handler {
+func NewHandler(db *db.DB, cfg *config.Config, ngx *nginx.Manager, proc *process.Manager, sslGen *ssl.Generator, dnsGen *dns.Manager, logger *slog.Logger) *Handler {
 	return &Handler{
 		DB:      db,
 		Cfg:     cfg,
 		Nginx:   ngx,
 		Process: proc,
 		SSL:     sslGen,
+		DNS:     dnsGen,
 		log:     logger.With(slog.String("component", "api")),
 	}
 }

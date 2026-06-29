@@ -27,6 +27,9 @@
     <div x-show="alert.msg" x-transition class="alert" :class="alert.type === 'err' ? 'alert-err' : 'alert-ok'"
       x-text="alert.msg"></div>
 
+    <!-- Stats -->
+    {{template "stats" .}}
+
     <!-- App list -->
     {{template "app_list" .}}
 

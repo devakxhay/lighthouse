@@ -33,6 +33,8 @@
           <div class="app-name">
             <span x-text="a.name"></span>
             <span class="type-badge" x-text="a.type"></span>
+            <span class="badge badge-pending" x-show="a.type === 'service'"
+              style="text-transform: none; font-size: 10px; padding: 3px 6px;">Externally Managed</span>
           </div>
           <a class="app-domain" :href="'https://' + a.domain" target="_blank" x-text="'https://' + a.domain"></a>
           <div class="app-meta">Port <strong x-text="a.port"></strong> &nbsp;·&nbsp; <span

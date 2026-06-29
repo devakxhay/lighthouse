@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/devakxhay/lighthouse/models"
 	"github.com/go-chi/chi/v5"
@@ -26,16 +27,27 @@ func (h *Handler) ListApps(w http.ResponseWriter, r *http.Request) {
 
 	enriched := make([]AppWithStatus, 0, len(apps))
 	for _, a := range apps {
-		st, _ := h.Process.Status(a.Name)
-		liveStatus := "stopped"
-		if a.Status == models.StatusBuilding {
-			liveStatus = "building"
-		} else if a.Status == models.StatusPending {
-			liveStatus = "pending"
-		} else if st != nil && st.Sub == "running" {
-			liveStatus = "running"
-		} else if st != nil && st.Active == "failed" {
-			liveStatus = "failed"
+		var liveStatus string
+		if a.Type == models.AppTypeService {
+			conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(a.Port)), 200*time.Millisecond)
+			if err == nil {
+				conn.Close()
+				liveStatus = "running"
+			} else {
+				liveStatus = "stopped"
+			}
+		} else {
+			st, _ := h.Process.Status(a.Name)
+			liveStatus = "stopped"
+			if a.Status == models.StatusBuilding {
+				liveStatus = "building"
+			} else if a.Status == models.StatusPending {
+				liveStatus = "pending"
+			} else if st != nil && st.Sub == "running" {
+				liveStatus = "running"
+			} else if st != nil && st.Active == "failed" {
+				liveStatus = "failed"
+			}
 		}
 		enriched = append(enriched, AppWithStatus{App: a, LiveStatus: liveStatus})
 	}
@@ -60,9 +72,24 @@ func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.Type == "" || req.Domain == "" || req.GitURL == "" {
-		writeErr(w, 400, "name, type, domain, and git_url are required")
+	if req.Name == "" || req.Type == "" {
+		writeErr(w, 400, "name and type are required")
 		return
+	}
+
+	if req.Type == string(models.AppTypeService) {
+		if req.Domain == "" {
+			req.Domain = req.Name + ".internal"
+		}
+		if req.Port == 0 {
+			writeErr(w, 400, "port is required for existing running services")
+			return
+		}
+	} else {
+		if req.Domain == "" || req.GitURL == "" {
+			writeErr(w, 400, "name, type, domain, and git_url are required")
+			return
+		}
 	}
 
 	if req.Port == 0 {
@@ -160,6 +187,11 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if app.Type == models.AppTypeService {
+		writeErr(w, 400, "Existing running services are managed externally and cannot be controlled via Lighthouse.")
+		return
+	}
+
 	if app.Status == models.StatusBuilding {
 		writeErr(w, 400, "Application is currently building/deploying. Please wait.")
 		return
@@ -194,6 +226,11 @@ func (h *Handler) Stop(w http.ResponseWriter, r *http.Request) {
 	if err != nil || app == nil {
 		h.log.Warn("app not found", "name", name)
 		writeErr(w, 404, "app not found")
+		return
+	}
+
+	if app.Type == models.AppTypeService {
+		writeErr(w, 400, "Existing running services are managed externally and cannot be controlled via Lighthouse.")
 		return
 	}
 
@@ -234,6 +271,11 @@ func (h *Handler) Restart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if app.Type == models.AppTypeService {
+		writeErr(w, 400, "Existing running services are managed externally and cannot be controlled via Lighthouse.")
+		return
+	}
+
 	if app.Status == models.StatusBuilding {
 		writeErr(w, 400, "Application is currently building/deploying. Please wait.")
 		return
@@ -260,6 +302,16 @@ func (h *Handler) Restart(w http.ResponseWriter, r *http.Request) {
 // GET /api/apps/{name}/logs?lines=100
 func (h *Handler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
+	app, err := h.DB.GetApp(name)
+	if err != nil || app == nil {
+		h.log.Warn("app not found", "name", name)
+		writeErr(w, 500, "failed to get app details")
+		return
+	}
+	if app.Type == models.AppTypeService {
+		writeErr(w, 400, "Logs are not available for existing running services managed externally.")
+		return
+	}
 	lines := 100
 	if l := r.URL.Query().Get("lines"); l != "" {
 		if n, err := strconv.Atoi(l); err == nil {

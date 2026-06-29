@@ -8,6 +8,7 @@ const (
 	AppTypeSpringBoot AppType = "spring-boot"
 	AppTypeNextJS     AppType = "nextjs"
 	AppTypeGo         AppType = "go"
+	AppTypeService    AppType = "service"
 )
 
 type AppStatus string

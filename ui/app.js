@@ -72,8 +72,17 @@ function app() {
     },
 
     async createApp() {
-      if (!this.form.name || !this.form.type || !this.form.domain || !this.form.git_url) {
-        this.showAlert('Name, type, domain and git URL are required', 'err'); return
+      if (this.form.type === 'service') {
+        if (!this.form.name || !this.form.port) {
+          this.showAlert('Name and Port are required for existing services', 'err'); return
+        }
+        if (!this.form.domain) {
+          this.form.domain = this.form.name + '.internal'
+        }
+      } else {
+        if (!this.form.name || !this.form.type || !this.form.domain || !this.form.git_url) {
+          this.showAlert('Name, type, domain and git URL are required', 'err'); return
+        }
       }
       this.creating = true
       try {

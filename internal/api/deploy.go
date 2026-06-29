@@ -75,15 +75,17 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 0. Pull code and build
-	if err := h.pullAndBuild(app); err != nil {
-		fail("BUILD", err)
-		return
-	}
-	steps = append(steps, "build")
+	if app.Type != models.AppTypeService {
+		if err := h.pullAndBuild(app); err != nil {
+			fail("BUILD", err)
+			return
+		}
+		steps = append(steps, "build")
 
-	if err := h.DB.UpdateAppPaths(app.Name, app.AppDir, app.BinaryPath); err != nil {
-		fail("SAVE_PATHS", err)
-		return
+		if err := h.DB.UpdateAppPaths(app.Name, app.AppDir, app.BinaryPath); err != nil {
+			fail("SAVE_PATHS", err)
+			return
+		}
 	}
 
 	// 1. Generate SSL cert
@@ -169,70 +171,72 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		Details: "Nginx config written and reloaded",
 	})
 
-	// Fetch all runtime paths from DB to populate AppData
-	var javaBin, npmBin, goBin, nodeBin string
-	if rt, _ := h.DB.GetRuntime("java"); rt != nil {
-		javaBin = rt.BinPath
-	}
-	if rt, _ := h.DB.GetRuntime("npm"); rt != nil {
-		npmBin = rt.BinPath
-	}
-	if rt, _ := h.DB.GetRuntime("go"); rt != nil {
-		goBin = rt.BinPath
-	}
-	if rt, _ := h.DB.GetRuntime("node"); rt != nil {
-		nodeBin = rt.BinPath
-	}
+	if app.Type != models.AppTypeService {
+		// Fetch all runtime paths from DB to populate AppData
+		var javaBin, npmBin, goBin, nodeBin string
+		if rt, _ := h.DB.GetRuntime("java"); rt != nil {
+			javaBin = rt.BinPath
+		}
+		if rt, _ := h.DB.GetRuntime("npm"); rt != nil {
+			npmBin = rt.BinPath
+		}
+		if rt, _ := h.DB.GetRuntime("go"); rt != nil {
+			goBin = rt.BinPath
+		}
+		if rt, _ := h.DB.GetRuntime("node"); rt != nil {
+			nodeBin = rt.BinPath
+		}
 
-	pathEnv := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-	if nodeBin != "" {
-		pathEnv = filepath.Dir(nodeBin) + ":" + pathEnv
-	}
-	if npmBin != "" {
-		pathEnv = filepath.Dir(npmBin) + ":" + pathEnv
-	}
-	if goBin != "" {
-		pathEnv = filepath.Dir(goBin) + ":" + pathEnv
-	}
-	if javaBin != "" {
-		pathEnv = filepath.Dir(javaBin) + ":" + pathEnv
-	}
+		pathEnv := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		if nodeBin != "" {
+			pathEnv = filepath.Dir(nodeBin) + ":" + pathEnv
+		}
+		if npmBin != "" {
+			pathEnv = filepath.Dir(npmBin) + ":" + pathEnv
+		}
+		if goBin != "" {
+			pathEnv = filepath.Dir(goBin) + ":" + pathEnv
+		}
+		if javaBin != "" {
+			pathEnv = filepath.Dir(javaBin) + ":" + pathEnv
+		}
 
-	isExport := false
-	if app.Type == models.AppTypeNextJS {
-		isExport = isNextJSExport(app.AppDir)
-	}
+		isExport := false
+		if app.Type == models.AppTypeNextJS {
+			isExport = isNextJSExport(app.AppDir)
+		}
 
-	// 5. Write systemd unit
-	unitContent, err := templates.RenderSystemdUnit(string(app.Type), templates.AppData{
-		Name:       app.Name,
-		BinaryPath: app.BinaryPath,
-		AppDir:     app.AppDir,
-		Port:       app.Port,
-		EnvFile:    envFile,
-		JavaBin:    javaBin,
-		NpmBin:     npmBin,
-		GoBin:      goBin,
-		PathEnv:    pathEnv,
-		IsExport:   isExport,
-	})
-	if err != nil {
-		fail("SYSTEMD_TEMPLATE", err)
-		return
-	}
-	if err := h.Process.WriteUnit(name, unitContent); err != nil {
-		fail("SYSTEMD_WRITE", err)
-		return
-	}
-	h.Process.Enable(name)
-	steps = append(steps, "systemd")
+		// 5. Write systemd unit
+		unitContent, err := templates.RenderSystemdUnit(string(app.Type), templates.AppData{
+			Name:       app.Name,
+			BinaryPath: app.BinaryPath,
+			AppDir:     app.AppDir,
+			Port:       app.Port,
+			EnvFile:    envFile,
+			JavaBin:    javaBin,
+			NpmBin:     npmBin,
+			GoBin:      goBin,
+			PathEnv:    pathEnv,
+			IsExport:   isExport,
+		})
+		if err != nil {
+			fail("SYSTEMD_TEMPLATE", err)
+			return
+		}
+		if err := h.Process.WriteUnit(name, unitContent); err != nil {
+			fail("SYSTEMD_WRITE", err)
+			return
+		}
+		h.Process.Enable(name)
+		steps = append(steps, "systemd")
 
-	// 6. Restart the service
-	if err := h.Process.Restart(name); err != nil {
-		fail("SERVICE_START", err)
-		return
+		// 6. Restart the service
+		if err := h.Process.Restart(name); err != nil {
+			fail("SERVICE_START", err)
+			return
+		}
+		steps = append(steps, "start")
 	}
-	steps = append(steps, "start")
 
 	// 7. Sync DNS config (dnsmasq)
 	apps, err := h.DB.ListApps()

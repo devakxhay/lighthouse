@@ -44,14 +44,14 @@
           <span class="badge" :class="statusClass(a.live_status)" x-text="a.live_status || a.status"></span>
           <div class="app-actions">
             <button class="btn btn-sm" x-show="a.type === 'go'" @click="editApp(a.name, a.entry_point)"
-              title="Edit Entry Point">✏</button>
+              title="Edit Entry Point"><i data-lucide="edit-2" style="width:13px;height:13px"></i></button>
             <button class="btn btn-sm" @click="deployApp(a.name)" :disabled="isRuntimeMissing(a.type)"
-              :title="isRuntimeMissing(a.type) ? (requiredRuntime[a.type] + ' not configured — open Settings') : 'Deploy'">🚀</button>
-            <button class="btn btn-sm" @click="controlApp(a.name,'start')" title="Start">▶</button>
-            <button class="btn btn-sm" @click="controlApp(a.name,'restart')" title="Restart">↺</button>
-            <button class="btn btn-sm" @click="controlApp(a.name,'stop')" title="Stop">■</button>
-            <button class="btn btn-sm" @click="openDetail(a)" title="Details">···</button>
-            <button class="btn btn-sm" @click="deleteApp(a.name)" title="Delete">🗑️</button>
+              :title="isRuntimeMissing(a.type) ? (requiredRuntime[a.type] + ' not configured — open Settings') : 'Deploy'"><i data-lucide="rocket" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-sm" x-show="a.type !== 'service'" @click="controlApp(a.name,'start')" title="Start"><i data-lucide="play" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-sm" x-show="a.type !== 'service'" @click="controlApp(a.name,'restart')" title="Restart"><i data-lucide="rotate-cw" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-sm" x-show="a.type !== 'service'" @click="controlApp(a.name,'stop')" title="Stop"><i data-lucide="square" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-sm" @click="openDetail(a)" title="Details"><i data-lucide="more-horizontal" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-sm" @click="deleteApp(a.name)" title="Delete"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>
           </div>
         </div>
       </div>

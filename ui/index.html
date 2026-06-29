@@ -7,10 +7,24 @@
   <title>Lighthouse</title>
   <link rel="icon" type="image/png" href="/favicon.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.5/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="/style.css">
 </head>
 
 <body x-data="app()" x-init="init()">
+
+  <!-- Background Watermark -->
+  <div class="bg-watermark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 22h16" />
+      <path d="M7 22l2-14h6l2 14" />
+      <path d="M8 8h8" />
+      <path d="M9 8V5a3 3 0 0 1 6 0v3" />
+      <path d="M12 2v3" />
+      <path d="M6 5h-4" />
+      <path d="M18 5h4" />
+    </svg>
+  </div>
 
   <!-- Topbar -->
   {{template "topbar" .}}

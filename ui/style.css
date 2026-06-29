@@ -117,9 +117,6 @@ html.light {
 
 body {
   background: var(--color-bg);
-  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-  background-size: 20px 20px;
-  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -972,4 +969,83 @@ samp {
 
 .footer-link:hover {
   color: var(--accent);
+}
+
+.bg-watermark {
+  position: fixed;
+  bottom: -40px;
+  right: -40px;
+  width: 500px;
+  height: 500px;
+  color: var(--border);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Mobile Devices Optimization */
+@media (max-width: 768px) {
+  .main {
+    padding: 16px 12px 120px;
+  }
+  
+  .app-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .app-card > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .app-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .app-actions .btn {
+    padding: 6px 10px;
+  }
+
+  .topbar {
+    padding: 0 16px;
+  }
+  
+  .bg-watermark {
+    width: 300px;
+    height: 300px;
+    bottom: -20px;
+    right: -20px;
+    opacity: 0.08;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+    padding: 12px 16px;
+  }
+  
+  .modal {
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .modal-backdrop {
+    padding: 0;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
 }

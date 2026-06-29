@@ -1,6 +1,6 @@
 function app() {
   return {
-    version: '1.0.1',
+    version: '1.1.0',
     apps: [],
     loading: true,
     alert: { msg: '', type: '' },
@@ -31,6 +31,13 @@ function app() {
     },
 
     async init() {
+      this.$watch('loading', value => {
+        if (!value) {
+          this.$nextTick(() => {
+            if (window.lucide) lucide.createIcons()
+          })
+        }
+      })
       await this.loadApps()
       await this.loadRuntimes()
       await this.checkCAStatus()

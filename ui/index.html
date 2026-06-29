@@ -16,8 +16,12 @@
   {{template "topbar" .}}
 
   <!-- Warning Banner -->
-  <div x-show="missingRuntimes.length > 0" class="alert" style="background:#d2992222; border:1px solid #d2992244; color:var(--yellow); margin: 20px auto 0 auto; max-width: 1100px; padding: 12px 24px;" x-transition>
-    ⚠ <span x-text="missingRuntimes.join(', ')"></span> not found — some deployments will fail. → <a href="#" @click.prevent="showSettings = true" style="color:var(--yellow); font-weight: 600; text-decoration: underline;">Open Settings</a>
+  <div x-show="missingRuntimes.length > 0" class="alert"
+    style="background:#d2992222; border:1px solid #d2992244; color:var(--yellow); margin: 20px auto 0 auto; max-width: 1100px; padding: 12px 24px;"
+    x-transition>
+    ⚠ <span x-text="missingRuntimes.join(', ')"></span> not found — some deployments will fail. → <a href="#"
+      @click.prevent="showSettings = true"
+      style="color:var(--yellow); font-weight: 600; text-decoration: underline;">Open Settings</a>
   </div>
 
   <!-- Main -->
@@ -35,6 +39,14 @@
 
     <!-- App Detail -->
     {{template "app_detail" .}}
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div x-text="'Lighthouse v' + version"></div>
+      <div style="display:flex; gap:16px">
+        <a href="#" @click.prevent="showAbout = true" class="footer-link">About</a>
+      </div>
+    </footer>
   </div>
 
   <!-- Create App Modal -->
@@ -56,7 +68,8 @@
       <div class="modal-body">
         <div style="display:flex; flex-direction:column; gap:16px">
           <template x-for="r in runtimes" :key="r.name">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--border)">
+            <div
+              style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--border)">
               <div style="flex:1">
                 <div style="display:flex; align-items:center; gap:8px">
                   <strong x-text="r.name"></strong>
@@ -73,7 +86,8 @@
                 </div>
                 <div style="margin-top:4px">
                   <template x-if="editingRuntime !== r.name">
-                    <span style="font-family:monospace; color:var(--muted); font-size:12px" x-text="r.bin_path || '—'"></span>
+                    <span style="font-family:monospace; color:var(--muted); font-size:12px"
+                      x-text="r.bin_path || '—'"></span>
                   </template>
                   <template x-if="editingRuntime === r.name">
                     <div style="display:flex; gap:8px; margin-top:4px">

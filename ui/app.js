@@ -1,5 +1,6 @@
 function app() {
   return {
+    version: '1.0.1',
     apps: [],
     loading: true,
     alert: { msg: '', type: '' },

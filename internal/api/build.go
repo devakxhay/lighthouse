@@ -145,6 +145,56 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 			return fmt.Errorf("go build: %w", err)
 		}
 
+	case models.AppTypeMarp:
+		npmBin := "npm"
+		if rt, _ := h.DB.GetRuntime("npm"); rt != nil && rt.BinPath != "" {
+			npmBin = rt.BinPath
+		}
+		npxBin := "npx"
+		if rt, _ := h.DB.GetRuntime("npx"); rt != nil && rt.BinPath != "" {
+			npxBin = rt.BinPath
+		} else if rt, _ := h.DB.GetRuntime("npm"); rt != nil && rt.BinPath != "" {
+			if strings.HasSuffix(rt.BinPath, "npm") {
+				npxBin = rt.BinPath[:len(rt.BinPath)-3] + "npx"
+			}
+		}
+
+		if fileExists(filepath.Join(app.AppDir, "package.json")) {
+			if err := runCmdWithEnv(app.AppDir, env, npmBin, "install"); err != nil {
+				return fmt.Errorf("npm install: %w", err)
+			}
+		}
+
+		entryPoint := app.EntryPoint
+		if entryPoint == "" {
+			modulesDir := filepath.Join(app.AppDir, "modules")
+			if fi, err := os.Stat(modulesDir); err == nil && fi.IsDir() {
+				entryPoint = "modules"
+			} else {
+				entryPoint = "index.md"
+				if !fileExists(filepath.Join(app.AppDir, entryPoint)) {
+					files, _ := filepath.Glob(filepath.Join(app.AppDir, "*.md"))
+					if len(files) > 0 {
+						entryPoint = filepath.Base(files[0])
+					}
+				}
+			}
+		}
+
+		fullPath := filepath.Join(app.AppDir, entryPoint)
+		fi, err := os.Stat(fullPath)
+		isDir := err == nil && fi.IsDir()
+
+		if isDir {
+			if err := runCmdWithEnv(app.AppDir, env, npxBin, "--yes", "@marp-team/marp-cli", "--html", entryPoint); err != nil {
+				return fmt.Errorf("marp build (directory): %w", err)
+			}
+		} else {
+			if err := runCmdWithEnv(app.AppDir, env, npxBin, "--yes", "@marp-team/marp-cli", "--html", entryPoint, "-o", "index.html"); err != nil {
+				return fmt.Errorf("marp build (file): %w", err)
+			}
+		}
+
 	default:
 		return fmt.Errorf("unsupported app type: %s", app.Type)
 	}

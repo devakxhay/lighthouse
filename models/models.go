@@ -9,6 +9,7 @@ const (
 	AppTypeNextJS     AppType = "nextjs"
 	AppTypeGo         AppType = "go"
 	AppTypeService    AppType = "service"
+	AppTypeMarp       AppType = "marp"
 )
 
 type AppStatus string

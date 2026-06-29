@@ -35,7 +35,7 @@ func NewDetector(database DB, cfg *config.Config, logger *slog.Logger) *Detector
 // Saves results to DB. Skips entries where overridden=true in UpsertRuntime.
 func (d *Detector) Detect() ([]Runtime, error) {
 	d.log.Info("detecting runtimes...")
-	targets := []string{"go", "java", "npm", "node"}
+	targets := []string{"go", "java", "npm", "node", "npx"}
 	var results []Runtime
 	foundCount := 0
 	missingCount := 0

@@ -1,0 +1,21 @@
+[Unit]
+Description=Lighthouse: {{.Name}} (Marp HTML Decks)
+After=network.target
+
+[Service]
+User=lighthouse
+Group=lighthouse
+Type=simple
+# Using standard npx serve to broadcast the compiled HTML folder
+ExecStart=npx --yes serve -l {{.Port}} .
+WorkingDirectory={{.AppDir}}
+Environment=PATH={{.PathEnv}}
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{.Name}}
+
+[Install]
+WantedBy=multi-user.target

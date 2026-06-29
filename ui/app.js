@@ -23,7 +23,7 @@ function app() {
     detecting: false,
     editingRuntime: null,
     editPath: '',
-    requiredRuntime: { 'spring-boot': 'java', 'nextjs': 'npm', 'go': 'go' },
+    requiredRuntime: { 'spring-boot': 'java', 'nextjs': 'npm', 'go': 'go', 'marp': 'npm' },
 
     isRuntimeMissing(type) {
       const req = this.requiredRuntime[type]
@@ -119,18 +119,22 @@ function app() {
       } catch (e) { this.showAlert('Network error', 'err') }
     },
 
-    async editApp(name, currentEntryPoint) {
-      const newEntryPoint = prompt("Enter relative Go Entry Point (default: main.go):", currentEntryPoint || 'main.go')
+    async editApp(app) {
+      const isGo = app.type === 'go'
+      const promptMsg = isGo ? "Enter relative Go Entry Point (default: main.go):" : "Enter relative Marp Markdown file (default: index.md):"
+      const defaultVal = isGo ? 'main.go' : 'index.md'
+      const newEntryPoint = prompt(promptMsg, app.entry_point || defaultVal)
       if (newEntryPoint === null) return
       try {
-        const r = await fetch(`/api/apps/${name}/entry-point`, {
+        const r = await fetch(`/api/apps/${app.name}/entry-point`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ entry_point: newEntryPoint })
         })
         const data = await r.json()
         if (!r.ok) { this.showAlert(data.error || 'Failed to update entry point', 'err'); return }
-        this.showAlert(`Go entry point updated to "${newEntryPoint}"!`, 'ok')
+        const successMsg = isGo ? `Go entry point updated to "${newEntryPoint}"!` : `Marp markdown file updated to "${newEntryPoint}"!`
+        this.showAlert(successMsg, 'ok')
         await this.loadApps()
       } catch (e) { this.showAlert('Network error', 'err') }
     },

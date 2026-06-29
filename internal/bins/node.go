@@ -263,6 +263,25 @@ func (n *NodeInstaller) Install(ctx context.Context, logger LogFunc) (Status, er
 		logger("warning: npm not found in Node.js bundle")
 	}
 
+	npxPath := "/usr/local/node/bin/npx"
+	if _, err := os.Stat(npxPath); err == nil {
+		logger(fmt.Sprintf("Bundled npx detected at: %s", npxPath))
+
+		_ = os.Remove("/usr/local/bin/npx")
+		if err := os.Symlink(npxPath, "/usr/local/bin/npx"); err != nil {
+			logger(fmt.Sprintf("warning: failed to create symlink for npx: %v", err))
+		}
+
+		if n.DB != nil {
+			logger("Saving npx path to database...")
+			if err := n.DB.SetRuntimeOverride("npx", npxPath); err != nil {
+				return Status{}, fmt.Errorf("failed to save npx path to DB: %w", err)
+			}
+		}
+	} else {
+		logger("warning: npx not found in Node.js bundle")
+	}
+
 	logger(fmt.Sprintf("Node.js installed successfully at: %s (%s)", status.BinPath, status.Version))
 	return status, nil
 }

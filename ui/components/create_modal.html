@@ -25,6 +25,7 @@
             <option value="spring-boot">Spring Boot</option>
             <option value="nextjs">Next.js</option>
             <option value="go">Go</option>
+            <option value="marp">Marp (HTML Decks)</option>
             <option value="service">Existing Service</option>
           </select>
         </div>
@@ -43,10 +44,10 @@
         <input class="form-input" x-model="form.app_dir" placeholder="/home/pi/apps/et-backend (optional)" />
         <p class="form-hint">Working directory for the process (auto-generated if left blank).</p>
       </div>
-      <div class="form-group" x-show="form.type === 'go'">
-        <label class="form-label">Go Entry Point</label>
-        <input class="form-input" x-model="form.entry_point" placeholder="main.go (optional)" />
-        <p class="form-hint">Relative path to the main Go file (defaults to main.go).</p>
+      <div class="form-group" x-show="form.type === 'go' || form.type === 'marp'">
+        <label class="form-label" x-text="form.type === 'go' ? 'Go Entry Point' : 'Marp Markdown File'"></label>
+        <input class="form-input" x-model="form.entry_point" :placeholder="form.type === 'go' ? 'main.go (optional)' : 'index.md (optional)'" />
+        <p class="form-hint" x-text="form.type === 'go' ? 'Relative path to the main Go file (defaults to main.go).' : 'Relative path to the slide markdown file (defaults to index.md or first markdown file found).'"></p>
       </div>
     </div>
     <div class="modal-footer">

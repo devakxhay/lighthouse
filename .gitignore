@@ -34,3 +34,4 @@ go.work.sum
 dev-data/
 
 .change_req
+.private

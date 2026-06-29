@@ -26,8 +26,8 @@ mkdir -p $CA_DIR/{certs,crl,newcerts,private}
 chmod 700 $CA_DIR/private
 touch $CA_DIR/index.txt
 touch $CA_DIR/index.txt.attr
-echo 1000 > $CA_DIR/serial
-echo 1000 > $CA_DIR/crlnumber
+[ -f $CA_DIR/serial ] || echo 1000 > $CA_DIR/serial
+[ -f $CA_DIR/crlnumber ] || echo 1000 > $CA_DIR/crlnumber
 
 mkdir -p /etc/lighthouse/certs
 mkdir -p /etc/lighthouse/envs

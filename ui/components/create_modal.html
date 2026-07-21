@@ -45,6 +45,11 @@
         <input class="form-input" x-model="form.app_dir" placeholder="/home/pi/apps/et-backend (optional)" />
         <p class="form-hint">Working directory for the process (auto-generated if left blank).</p>
       </div>
+      <div class="form-group" x-show="form.type !== 'service'">
+        <label class="form-label">Custom Start Command</label>
+        <input class="form-input" x-model="form.start_command" placeholder="e.g. npm run dev (optional)" />
+        <p class="form-hint">Custom command to start the app (overrides default ExecStart).</p>
+      </div>
       <div class="form-group" x-show="form.type === 'go' || form.type === 'marp'">
         <label class="form-label" x-text="form.type === 'go' ? 'Go Entry Point' : 'Marp Markdown File'"></label>
         <input class="form-input" x-model="form.entry_point" :placeholder="form.type === 'go' ? 'main.go (optional)' : 'index.md (optional)'" />

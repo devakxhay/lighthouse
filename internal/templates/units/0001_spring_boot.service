@@ -6,9 +6,7 @@ After=network.target
 User=lighthouse
 Group=lighthouse
 Type=simple
-ExecStart={{.JavaBin}} \
-  -Xms256m -Xmx512m \
-  -jar {{.BinaryPath}}
+ExecStart={{if .StartCommand}}{{.StartCommand}}{{else}}{{.JavaBin}} -Xms256m -Xmx512m -jar {{.BinaryPath}}{{end}}
 WorkingDirectory={{.AppDir}}
 EnvironmentFile={{.EnvFile}}
 Environment=PATH={{.PathEnv}}

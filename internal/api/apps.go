@@ -58,13 +58,14 @@ func (h *Handler) ListApps(w http.ResponseWriter, r *http.Request) {
 // POST /api/apps
 func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name       string `json:"name"`
-		Type       string `json:"type"` // spring-boot | nextjs | go
-		Domain     string `json:"domain"`
-		Port       int    `json:"port"`
-		GitURL     string `json:"git_url"`
-		AppDir     string `json:"app_dir"`
-		EntryPoint string `json:"entry_point"`
+		Name         string `json:"name"`
+		Type         string `json:"type"` // spring-boot | nextjs | go
+		Domain       string `json:"domain"`
+		Port         int    `json:"port"`
+		GitURL       string `json:"git_url"`
+		AppDir       string `json:"app_dir"`
+		EntryPoint   string `json:"entry_point"`
+		StartCommand string `json:"start_command"`
 	}
 
 	if err := decode(r, &req); err != nil {
@@ -102,13 +103,14 @@ func (h *Handler) CreateApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app := &models.App{
-		Name:       req.Name,
-		Type:       models.AppType(req.Type),
-		Domain:     req.Domain,
-		Port:       req.Port,
-		GitURL:     req.GitURL,
-		AppDir:     req.AppDir,
-		EntryPoint: req.EntryPoint,
+		Name:         req.Name,
+		Type:         models.AppType(req.Type),
+		Domain:       req.Domain,
+		Port:         req.Port,
+		GitURL:       req.GitURL,
+		AppDir:       req.AppDir,
+		EntryPoint:   req.EntryPoint,
+		StartCommand: req.StartCommand,
 	}
 
 	if err := h.DB.CreateApp(app); err != nil {
@@ -384,4 +386,30 @@ func (h *Handler) UpdateEntryPoint(w http.ResponseWriter, r *http.Request) {
 	})
 
 	writeJSON(w, 200, map[string]string{"status": "updated", "entry_point": req.EntryPoint})
+}
+
+// POST /api/apps/{name}/start-command
+func (h *Handler) UpdateStartCommand(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	var req struct {
+		StartCommand string `json:"start_command"`
+	}
+	if err := decode(r, &req); err != nil {
+		writeErr(w, 400, "invalid request body")
+		return
+	}
+
+	if err := h.DB.UpdateAppStartCommand(name, req.StartCommand); err != nil {
+		writeErr(w, 500, fmt.Sprintf("failed to update start command: %v", err))
+		return
+	}
+
+	h.DB.Log(models.AuditLog{
+		AppName: name,
+		Action:  models.ActionEnvChange,
+		Status:  "SUCCESS",
+		Details: fmt.Sprintf("Updated start command to: %s", req.StartCommand),
+	})
+
+	writeJSON(w, 200, map[string]string{"status": "updated", "start_command": req.StartCommand})
 }

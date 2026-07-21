@@ -45,6 +45,7 @@ func (d *DB) migrate() error {
 		"migrations/0004_unique_port.sql",
 		"migrations/0005_entry_point.sql",
 		"migrations/0006_runtimes.sql",
+		"migrations/0007_start_command.sql",
 	}
 	for _, m := range migrations {
 		schema, err := migrationFS.ReadFile(m)
@@ -65,9 +66,9 @@ func (d *DB) migrate() error {
 
 func (d *DB) CreateApp(a *models.App) error {
 	res, err := d.conn.Exec(`
-		INSERT INTO apps (name, type, domain, port, binary_path, app_dir, status, git_url, entry_point)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending, a.GitURL, a.EntryPoint,
+		INSERT INTO apps (name, type, domain, port, binary_path, app_dir, status, git_url, entry_point, start_command)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.Name, a.Type, a.Domain, a.Port, a.BinaryPath, a.AppDir, models.StatusPending, a.GitURL, a.EntryPoint, a.StartCommand,
 	)
 	if err != nil {
 		d.log.Error("query failed", "op", "CreateApp", "error", err.Error())
@@ -81,10 +82,10 @@ func (d *DB) CreateApp(a *models.App) error {
 func (d *DB) GetApp(name string) (*models.App, error) {
 	a := &models.App{}
 	err := d.conn.QueryRow(`
-		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point
+		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point, start_command
 		FROM apps WHERE name = ?`, name).
 		Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
-			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint)
+			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint, &a.StartCommand)
 	if err == sql.ErrNoRows {
 		d.log.Warn("app not found", "name", name)
 		return nil, nil
@@ -97,7 +98,7 @@ func (d *DB) GetApp(name string) (*models.App, error) {
 
 func (d *DB) ListApps() ([]models.App, error) {
 	rows, err := d.conn.Query(`
-		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point
+		SELECT id, name, type, domain, port, binary_path, app_dir, status, created_at, git_url, entry_point, start_command
 		FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		d.log.Error("query failed", "op", "ListApps", "error", err.Error())
@@ -109,7 +110,7 @@ func (d *DB) ListApps() ([]models.App, error) {
 	for rows.Next() {
 		a := models.App{}
 		if err := rows.Scan(&a.ID, &a.Name, &a.Type, &a.Domain, &a.Port,
-			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint); err != nil {
+			&a.BinaryPath, &a.AppDir, &a.Status, &a.CreatedAt, &a.GitURL, &a.EntryPoint, &a.StartCommand); err != nil {
 			d.log.Error("query failed", "op", "ListAppsScan", "error", err.Error())
 			return nil, err
 		}
@@ -140,6 +141,14 @@ func (d *DB) UpdateAppEntryPoint(name string, entryPoint string) error {
 	_, err := d.conn.Exec(`UPDATE apps SET entry_point = ? WHERE name = ?`, entryPoint, name)
 	if err != nil {
 		d.log.Error("query failed", "op", "UpdateAppEntryPoint", "error", err.Error())
+	}
+	return err
+}
+
+func (d *DB) UpdateAppStartCommand(name string, startCommand string) error {
+	_, err := d.conn.Exec(`UPDATE apps SET start_command = ? WHERE name = ?`, startCommand, name)
+	if err != nil {
+		d.log.Error("query failed", "op", "UpdateAppStartCommand", "error", err.Error())
 	}
 	return err
 }

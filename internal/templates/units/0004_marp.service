@@ -7,7 +7,7 @@ User=lighthouse
 Group=lighthouse
 Type=simple
 # Using standard npx serve to broadcast the compiled HTML folder
-ExecStart=npx --yes serve -l {{.Port}} .
+ExecStart={{if .StartCommand}}{{.StartCommand}}{{else}}npx --yes serve -l {{.Port}} .{{end}}
 WorkingDirectory={{.AppDir}}
 Environment=PATH={{.PathEnv}}
 Environment=NODE_ENV=production

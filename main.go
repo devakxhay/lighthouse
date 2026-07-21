@@ -161,6 +161,7 @@ func main() {
 				r.Get("/nginx/history", h.NginxHistory)
 				r.Post("/nginx/rollback", h.NginxRollback)
 				r.Post("/entry-point", h.UpdateEntryPoint)
+				r.Post("/start-command", h.UpdateStartCommand)
 			})
 		})
 	})

@@ -11,7 +11,7 @@ function app() {
     logs: '',
     auditLogs: [],
     nginxHistory: [],
-    form: { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '' },
+    form: { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '', start_command: '' },
 
     runtimes: [],
     missingRuntimes: [],
@@ -68,7 +68,7 @@ function app() {
     },
 
     async openCreate() {
-      this.form = { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '' }
+      this.form = { name: '', type: '', domain: '', port: '', git_url: '', app_dir: '', entry_point: '', start_command: '' }
       this.showCreate = true
       try {
         const r = await fetch('/api/apps/next-port')
@@ -135,6 +135,24 @@ function app() {
         if (!r.ok) { this.showAlert(data.error || 'Failed to update entry point', 'err'); return }
         const successMsg = isGo ? `Go entry point updated to "${newEntryPoint}"!` : `Marp markdown file updated to "${newEntryPoint}"!`
         this.showAlert(successMsg, 'ok')
+        await this.loadApps()
+      } catch (e) { this.showAlert('Network error', 'err') }
+    },
+
+    async editStartCommand(app) {
+      const currentCmd = app.start_command || ''
+      const promptMsg = `Enter custom start command for "${app.name}" (leave empty for default):`
+      const newStartCmd = prompt(promptMsg, currentCmd)
+      if (newStartCmd === null) return
+      try {
+        const r = await fetch(`/api/apps/${app.name}/start-command`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_command: newStartCmd })
+        })
+        const data = await r.json()
+        if (!r.ok) { this.showAlert(data.error || 'Failed to update start command', 'err'); return }
+        this.showAlert(`Start command updated for "${app.name}"!`, 'ok')
         await this.loadApps()
       } catch (e) { this.showAlert('Network error', 'err') }
     },

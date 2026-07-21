@@ -8,7 +8,7 @@ Group=lighthouse
 Type=simple
 # Using serve to host the compiled static directory.
 # Since Vite compiles by default to `dist`, we serve it from `dist`.
-ExecStart=npx --yes serve -l {{.Port}} dist
+ExecStart={{if .StartCommand}}{{.StartCommand}}{{else}}npx --yes serve -l {{.Port}} dist{{end}}
 WorkingDirectory={{.AppDir}}
 Environment=PATH={{.PathEnv}}
 Environment=NODE_ENV=production

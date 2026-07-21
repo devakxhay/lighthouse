@@ -45,6 +45,8 @@
           <div class="app-actions">
             <button class="btn btn-sm" x-show="a.type === 'go' || a.type === 'marp'" @click="editApp(a)"
               :title="a.type === 'go' ? 'Edit Entry Point' : 'Edit Marp Slide File'"><i data-lucide="edit-2" style="width:13px;height:13px"></i></button>
+            <button class="btn btn-sm" x-show="a.type !== 'service'" @click="editStartCommand(a)"
+              title="Edit Custom Start Command"><i data-lucide="terminal" style="width:13px;height:13px"></i></button>
             <button class="btn btn-sm" @click="deployApp(a.name)" :disabled="isRuntimeMissing(a.type)"
               :title="isRuntimeMissing(a.type) ? (requiredRuntime[a.type] + ' not configured — open Settings') : 'Deploy'"><i data-lucide="rocket" style="width:13px;height:13px"></i></button>
             <button class="btn btn-sm" x-show="a.type !== 'service'" @click="controlApp(a.name,'start')" title="Start"><i data-lucide="play" style="width:13px;height:13px"></i></button>

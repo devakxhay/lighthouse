@@ -209,16 +209,17 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 
 		// 5. Write systemd unit
 		unitContent, err := templates.RenderSystemdUnit(string(app.Type), templates.AppData{
-			Name:       app.Name,
-			BinaryPath: app.BinaryPath,
-			AppDir:     app.AppDir,
-			Port:       app.Port,
-			EnvFile:    envFile,
-			JavaBin:    javaBin,
-			NpmBin:     npmBin,
-			GoBin:      goBin,
-			PathEnv:    pathEnv,
-			IsExport:   isExport,
+			Name:         app.Name,
+			BinaryPath:   app.BinaryPath,
+			AppDir:       app.AppDir,
+			Port:         app.Port,
+			EnvFile:      envFile,
+			JavaBin:      javaBin,
+			NpmBin:       npmBin,
+			GoBin:        goBin,
+			PathEnv:      pathEnv,
+			IsExport:     isExport,
+			StartCommand: app.StartCommand,
 		})
 		if err != nil {
 			fail("SYSTEMD_TEMPLATE", err)

@@ -9,19 +9,20 @@ import (
 )
 
 type AppData struct {
-	Name       string
-	Domain     string
-	Port       int
-	BinaryPath string
-	AppDir     string
-	EnvFile    string
-	CertPath   string
-	KeyPath    string
-	JavaBin    string
-	NpmBin     string
-	GoBin      string
-	PathEnv    string
-	IsExport   bool
+	Name         string
+	Domain       string
+	Port         int
+	BinaryPath   string
+	AppDir       string
+	EnvFile      string
+	CertPath     string
+	KeyPath      string
+	JavaBin      string
+	NpmBin       string
+	GoBin        string
+	PathEnv      string
+	IsExport     bool
+	StartCommand string
 }
 
 //go:embed units/*.service

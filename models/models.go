@@ -24,17 +24,18 @@ const (
 )
 
 type App struct {
-	ID         int64     `json:"id"`
-	Name       string    `json:"name"`
-	Type       AppType   `json:"type"`
-	Domain     string    `json:"domain"`
-	Port       int       `json:"port"`
-	BinaryPath string    `json:"binary_path"`
-	AppDir     string    `json:"app_dir"`
-	Status     AppStatus `json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
-	GitURL     string    `json:"git_url"`
-	EntryPoint string    `json:"entry_point"`
+	ID           int64     `json:"id"`
+	Name         string    `json:"name"`
+	Type         AppType   `json:"type"`
+	Domain       string    `json:"domain"`
+	Port         int       `json:"port"`
+	BinaryPath   string    `json:"binary_path"`
+	AppDir       string    `json:"app_dir"`
+	Status       AppStatus `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	GitURL       string    `json:"git_url"`
+	EntryPoint   string    `json:"entry_point"`
+	StartCommand string    `json:"start_command"`
 }
 
 type Cert struct {

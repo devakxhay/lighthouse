@@ -116,6 +116,18 @@ func (h *Handler) pullAndBuild(app *models.App) error {
 			return fmt.Errorf("npm run build: %w", err)
 		}
 
+	case models.AppTypeVite:
+		npmBin := "npm"
+		if rt, _ := h.DB.GetRuntime("npm"); rt != nil && rt.BinPath != "" {
+			npmBin = rt.BinPath
+		}
+		if err := runCmdWithEnv(app.AppDir, env, npmBin, "install"); err != nil {
+			return fmt.Errorf("npm install: %w", err)
+		}
+		if err := runCmdWithEnv(app.AppDir, env, npmBin, "run", "build"); err != nil {
+			return fmt.Errorf("npm run build: %w", err)
+		}
+
 	case models.AppTypeGo:
 		app.BinaryPath = filepath.Join(app.AppDir, app.Name)
 		_ = os.Remove(app.BinaryPath)

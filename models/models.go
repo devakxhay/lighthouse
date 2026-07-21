@@ -10,6 +10,7 @@ const (
 	AppTypeGo         AppType = "go"
 	AppTypeService    AppType = "service"
 	AppTypeMarp       AppType = "marp"
+	AppTypeVite       AppType = "vite"
 )
 
 type AppStatus string

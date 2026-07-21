@@ -1,0 +1,22 @@
+[Unit]
+Description=Lighthouse: {{.Name}} (Vite App)
+After=network.target
+
+[Service]
+User=lighthouse
+Group=lighthouse
+Type=simple
+# Using serve to host the compiled static directory.
+# Since Vite compiles by default to `dist`, we serve it from `dist`.
+ExecStart=npx --yes serve -l {{.Port}} dist
+WorkingDirectory={{.AppDir}}
+Environment=PATH={{.PathEnv}}
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{.Name}}
+
+[Install]
+WantedBy=multi-user.target

@@ -23,7 +23,7 @@ function app() {
     detecting: false,
     editingRuntime: null,
     editPath: '',
-    requiredRuntime: { 'spring-boot': 'java', 'nextjs': 'npm', 'go': 'go', 'marp': 'npm' },
+    requiredRuntime: { 'spring-boot': 'java', 'nextjs': 'npm', 'go': 'go', 'marp': 'npm', 'vite': 'npm' },
 
     isRuntimeMissing(type) {
       const req = this.requiredRuntime[type]

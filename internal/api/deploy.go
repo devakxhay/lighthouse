@@ -59,6 +59,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		models.AppTypeSpringBoot: "java",
 		models.AppTypeNextJS:     "npm",
 		models.AppTypeGo:         "go",
+		models.AppTypeVite:       "npm",
 	}
 
 	if reqRuntime, ok := requiredRuntime[app.Type]; ok {

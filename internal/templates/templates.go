@@ -36,6 +36,7 @@ var springBootUnit, _ = unitsFS.ReadFile("units/0001_spring_boot.service")
 var nextjsUnit, _ = unitsFS.ReadFile("units/0002_next_js.service")
 var goUnit, _ = unitsFS.ReadFile("units/0003_go.service")
 var marpUnit, _ = unitsFS.ReadFile("units/0004_marp.service")
+var viteUnit, _ = unitsFS.ReadFile("units/0005_vite.service")
 
 // ---- Nginx Config Template ----
 
@@ -54,6 +55,8 @@ func RenderSystemdUnit(appType string, data AppData) (string, error) {
 		raw = string(goUnit)
 	case "marp":
 		raw = string(marpUnit)
+	case "vite":
+		raw = string(viteUnit)
 	default:
 		return "", fmt.Errorf("unknown app type: %s", appType)
 	}
